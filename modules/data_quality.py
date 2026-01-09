@@ -109,8 +109,16 @@ def check_data_completeness(
         if daytime_only:
             gap_start_hour = gap_start.hour
             gap_end_hour = gap_end.hour
-            # Skip if gap is entirely nighttime
-            if (gap_end_hour < daytime_start_hour or gap_start_hour >= daytime_end_hour):
+            gap_start_date = gap_start.date()
+            gap_end_date = gap_end.date()
+            
+            # Skip overnight gaps (different dates with gap spanning nighttime)
+            if gap_start_date != gap_end_date:
+                # This is an overnight gap - skip it
+                continue
+            
+            # Skip if gap is entirely outside daytime hours on the same day
+            if gap_end_hour < daytime_start_hour or gap_start_hour >= daytime_end_hour:
                 continue
         
         missing_periods.append({
