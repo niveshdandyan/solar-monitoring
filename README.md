@@ -2,8 +2,6 @@
 
 A comprehensive web-based application for analyzing solar panel performance with real-time data visualization, anomaly detection, and calendar view.
 
-![Solar Monitoring Dashboard](docs/screenshots/app_screenshot.png)
-
 ## ✨ Features
 
 ### 📊 Data Analysis
@@ -137,14 +135,17 @@ solar-monitoring/
 
 ## 🎨 Screenshots
 
-### Dashboard
-![Dashboard](docs/screenshots/main_dashboard.png)
+### Main Dashboard
+![Main Dashboard](docs/images/main_dashboard.png)
 
-### Calendar View
-![Calendar View](docs/screenshots/calendar_view.png)
+### Daily Performance Graphs
+![Daily Graphs](docs/images/daily_graphs.png)
 
-### Anomaly Detection
-![Anomaly Detection](docs/screenshots/anomaly_detection.png)
+### PR Analysis
+![PR Analysis](docs/images/pr_analysis.png)
+
+### Temperature Effects
+![Temperature Effects](docs/images/temperature_effects.png)
 
 ## 🔧 Technology Stack
 
