@@ -301,10 +301,10 @@ def main():
     
     # Display results if data is loaded
     if st.session_state.data_loaded:
-        display_analysis_results()
+        display_analysis_results(vmpp, impp)
 
 
-def display_analysis_results():
+def display_analysis_results(vmpp: float, impp: float):
     """Display all analysis results and visualizations."""
     
     analysis_df = st.session_state.analysis_df
