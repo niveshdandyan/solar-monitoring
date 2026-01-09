@@ -10,16 +10,23 @@ from typing import Dict, List, Optional, Tuple
 
 def check_data_completeness(
     df: pd.DataFrame,
-    expected_interval_minutes: int = 5,
-    min_completeness_pct: float = 80.0
+    expected_interval_minutes: Optional[int] = None,
+    min_completeness_pct: float = 80.0,
+    daytime_only: bool = True,
+    daytime_start_hour: int = 6,
+    daytime_end_hour: int = 18
 ) -> Dict:
     """
     Check data completeness and identify missing data periods.
+    Auto-detects data frequency if not specified.
     
     Args:
         df: DataFrame with Timestamp column
-        expected_interval_minutes: Expected data logging interval
+        expected_interval_minutes: Expected data logging interval (auto-detected if None)
         min_completeness_pct: Minimum acceptable completeness percentage
+        daytime_only: Only check completeness during daytime hours
+        daytime_start_hour: Start of daytime (default 6 AM)
+        daytime_end_hour: End of daytime (default 6 PM)
     
     Returns:
         Dictionary with completeness metrics and missing periods
@@ -34,15 +41,55 @@ def check_data_completeness(
     
     df_sorted = df.sort_values('Timestamp').copy()
     
-    # Calculate time range
+    # Filter to daytime hours only if requested
+    if daytime_only:
+        df_sorted['Hour'] = df_sorted['Timestamp'].dt.hour
+        df_sorted = df_sorted[
+            (df_sorted['Hour'] >= daytime_start_hour) & 
+            (df_sorted['Hour'] < daytime_end_hour)
+        ].copy()
+        
+        if len(df_sorted) < 2:
+            return {
+                'overall_completeness_pct': 0,
+                'missing_periods': [],
+                'is_complete': False,
+                'error': 'No daytime data available'
+            }
+    
+    # Auto-detect interval if not provided
+    if expected_interval_minutes is None:
+        # Calculate median time difference (more robust than mean)
+        time_diffs = df_sorted['Timestamp'].diff().dt.total_seconds() / 60
+        # Filter out unreasonably large gaps (> 2 hours) for detection
+        reasonable_diffs = time_diffs[(time_diffs > 0) & (time_diffs < 120)]
+        
+        if len(reasonable_diffs) > 0:
+            detected_interval = reasonable_diffs.median()
+            
+            # Round to common intervals
+            common_intervals = [1, 5, 10, 15, 30, 60]  # minutes
+            expected_interval_minutes = min(common_intervals, 
+                                           key=lambda x: abs(x - detected_interval))
+        else:
+            expected_interval_minutes = 60  # Default to hourly
+    
+    # Calculate time range (daytime only)
     start_time = df_sorted['Timestamp'].min()
     end_time = df_sorted['Timestamp'].max()
-    total_duration_minutes = (end_time - start_time).total_seconds() / 60
     
-    # Expected vs actual data points
-    expected_points = total_duration_minutes / expected_interval_minutes
+    # Calculate expected points during daytime hours
+    if daytime_only:
+        # Count daytime hours in the date range
+        date_range = pd.date_range(start=start_time.date(), end=end_time.date(), freq='D')
+        daytime_hours_per_day = daytime_end_hour - daytime_start_hour
+        total_daytime_minutes = len(date_range) * daytime_hours_per_day * 60
+        expected_points = total_daytime_minutes / expected_interval_minutes
+    else:
+        total_duration_minutes = (end_time - start_time).total_seconds() / 60
+        expected_points = total_duration_minutes / expected_interval_minutes
+    
     actual_points = len(df_sorted)
-    
     completeness_pct = (actual_points / expected_points) * 100 if expected_points > 0 else 0
     
     # Find missing periods (gaps > 2x expected interval)
@@ -53,9 +100,18 @@ def check_data_completeness(
     
     missing_periods = []
     for idx, row in gaps.iterrows():
-        gap_start = df_sorted.loc[idx - 1, 'Timestamp'] if idx > 0 else row['Timestamp']
+        prev_idx = df_sorted.index[df_sorted.index < idx][-1] if any(df_sorted.index < idx) else idx
+        gap_start = df_sorted.loc[prev_idx, 'Timestamp']
         gap_end = row['Timestamp']
         gap_duration = row['time_diff']
+        
+        # Only include if gap is during daytime
+        if daytime_only:
+            gap_start_hour = gap_start.hour
+            gap_end_hour = gap_end.hour
+            # Skip if gap is entirely nighttime
+            if (gap_end_hour < daytime_start_hour or gap_start_hour >= daytime_end_hour):
+                continue
         
         missing_periods.append({
             'start': gap_start,
@@ -65,33 +121,45 @@ def check_data_completeness(
     
     # Daily completeness
     daily_completeness = []
-    if 'Date' in df_sorted.columns:
+    if 'Date' in df_sorted.columns or 'Timestamp' in df_sorted.columns:
+        # Add Date column if not present
+        if 'Date' not in df_sorted.columns:
+            df_sorted['Date'] = df_sorted['Timestamp'].dt.date
+        
         for date, day_df in df_sorted.groupby('Date'):
-            day_start = day_df['Timestamp'].min()
-            day_end = day_df['Timestamp'].max()
-            day_duration = (day_end - day_start).total_seconds() / 60
-            expected_day_points = day_duration / expected_interval_minutes if day_duration > 0 else 1
-            day_completeness = (len(day_df) / expected_day_points) * 100
+            # Expected points for daytime hours
+            if daytime_only:
+                expected_day_points = (daytime_hours_per_day * 60) / expected_interval_minutes
+            else:
+                day_start = day_df['Timestamp'].min()
+                day_end = day_df['Timestamp'].max()
+                day_duration = (day_end - day_start).total_seconds() / 60
+                expected_day_points = day_duration / expected_interval_minutes if day_duration > 0 else 1
+            
+            day_completeness = (len(day_df) / expected_day_points) * 100 if expected_day_points > 0 else 0
             
             daily_completeness.append({
                 'date': date,
                 'data_points': len(day_df),
+                'expected_points': int(expected_day_points),
                 'completeness_pct': min(day_completeness, 100),
                 'is_complete': day_completeness >= min_completeness_pct
             })
     
     return {
         'overall_completeness_pct': min(completeness_pct, 100),
+        'detected_interval_minutes': expected_interval_minutes,
         'expected_points': int(expected_points),
         'actual_points': actual_points,
         'missing_periods': missing_periods,
         'missing_periods_count': len(missing_periods),
         'daily_completeness': daily_completeness,
         'is_complete': completeness_pct >= min_completeness_pct,
+        'daytime_only': daytime_only,
         'data_range': {
             'start': start_time,
             'end': end_time,
-            'duration_hours': total_duration_minutes / 60
+            'duration_hours': (end_time - start_time).total_seconds() / 3600
         }
     }
 

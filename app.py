@@ -911,6 +911,17 @@ def display_data_quality(analysis_df: pd.DataFrame):
         completeness_info = quality_report.get('completeness', {})
         
         if 'error' not in completeness_info:
+            # Show detected interval
+            detected_interval = completeness_info.get('detected_interval_minutes', 'Auto')
+            daytime_only = completeness_info.get('daytime_only', True)
+            
+            if detected_interval != 'Auto':
+                if detected_interval >= 60:
+                    interval_str = f"{detected_interval/60:.0f} hour(s)"
+                else:
+                    interval_str = f"{detected_interval:.0f} minute(s)"
+                st.info(f"🔍 **Detected Data Frequency:** {interval_str} | **Analysis Period:** {'Daytime only (6 AM - 6 PM)' if daytime_only else '24 hours'}")
+            
             col1, col2 = st.columns(2)
             
             with col1:
