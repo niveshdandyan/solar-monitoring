@@ -225,6 +225,7 @@ def calculate_daily_metrics(
             'Avg_Irradiance': day_df[day_df['Hour'].between(6, 18)]['Irradiance_Wm2'].mean() if 'Irradiance_Wm2' in day_df.columns and 'Hour' in day_df.columns else (day_df['Irradiance_Wm2'].mean() if 'Irradiance_Wm2' in day_df.columns else None),
             'Avg_Temperature': day_df[day_df['Hour'].between(6, 18)]['Temperature_C'].mean() if 'Temperature_C' in day_df.columns and 'Hour' in day_df.columns else (day_df['Temperature_C'].mean() if 'Temperature_C' in day_df.columns else None),
             'Max_Power_kW': day_with_power['Power_kW'].max() if 'Power_kW' in day_with_power.columns else None,
+            'Operating_Hours': calculate_operating_hours(day_with_power),
             'Data_Points': len(day_df),
             'High_SoC_Points': (day_df['SoC_pct'] >= 95).sum() if 'SoC_pct' in day_df.columns else 0
         }
@@ -271,6 +272,7 @@ def calculate_monthly_metrics(
             'Avg_Irradiance': month_df[month_df['Hour'].between(6, 18)]['Irradiance_Wm2'].mean() if 'Irradiance_Wm2' in month_df.columns and 'Hour' in month_df.columns else (month_df['Irradiance_Wm2'].mean() if 'Irradiance_Wm2' in month_df.columns else None),
             'Avg_Temperature': month_df[month_df['Hour'].between(6, 18)]['Temperature_C'].mean() if 'Temperature_C' in month_df.columns and 'Hour' in month_df.columns else (month_df['Temperature_C'].mean() if 'Temperature_C' in month_df.columns else None),
             'Max_Power_kW': month_with_power['Power_kW'].max() if 'Power_kW' in month_with_power.columns else None,
+            'Total_Operating_Hours': calculate_operating_hours(month_with_power),
             'Days_with_Data': month_df['Date'].nunique() if 'Date' in month_df.columns else None,
             'Data_Points': len(month_df),
             'High_SoC_Points': (month_df['SoC_pct'] >= 95).sum() if 'SoC_pct' in month_df.columns else 0
@@ -278,3 +280,296 @@ def calculate_monthly_metrics(
         monthly_metrics.append(metrics)
     
     return pd.DataFrame(monthly_metrics)
+
+
+# =============================================================================
+# OPERATING HOURS FUNCTIONS
+# =============================================================================
+
+def calculate_operating_hours(df: pd.DataFrame, power_threshold: float = 0.0) -> float:
+    """
+    Calculate operating hours where Power > threshold.
+    
+    Args:
+        df: DataFrame with Timestamp and Power_W columns
+        power_threshold: Minimum power to count as operating (default 0W)
+    
+    Returns:
+        Operating hours (float)
+    """
+    if 'Power_W' not in df.columns or 'Timestamp' not in df.columns:
+        return 0.0
+    
+    # Filter to power > threshold
+    operating_df = df[df['Power_W'] > power_threshold].copy()
+    
+    if len(operating_df) < 2:
+        return 0.0
+    
+    # Sort by timestamp
+    operating_df = operating_df.sort_values('Timestamp')
+    
+    # Calculate time differences
+    time_diffs = operating_df['Timestamp'].diff().dt.total_seconds() / 3600
+    
+    # Only count reasonable intervals (< 1 hour gaps)
+    valid_diffs = time_diffs[time_diffs < 1.0]
+    
+    return valid_diffs.sum()
+
+
+# =============================================================================
+# ANOMALY DETECTION FUNCTIONS
+# =============================================================================
+
+def detect_power_dip_anomalies(
+    df: pd.DataFrame, 
+    irradiance_threshold: float = 500.0,
+    power_ratio_threshold: float = 0.5,
+    soc_threshold: float = 95.0
+) -> pd.DataFrame:
+    """
+    Detect power dips during high irradiance when battery is NOT fully charged.
+    This indicates shading, module issues, or inverter problems.
+    
+    Args:
+        df: DataFrame with Power_W, Irradiance_Wm2, and optionally SoC_pct
+        irradiance_threshold: Minimum irradiance to consider "high" (W/m²)
+        power_ratio_threshold: Power/Expected ratio below which is anomaly
+        soc_threshold: SoC below which battery is not the cause
+    
+    Returns:
+        DataFrame with detected anomalies
+    """
+    if 'Power_W' not in df.columns or 'Irradiance_Wm2' not in df.columns:
+        return pd.DataFrame()
+    
+    result = df.copy()
+    
+    # High irradiance condition
+    high_irr = result['Irradiance_Wm2'] >= irradiance_threshold
+    
+    # Calculate expected power ratio (simplified: proportional to irradiance)
+    max_power = result['Power_W'].max()
+    max_irr = result['Irradiance_Wm2'].max()
+    
+    if max_power <= 0 or max_irr <= 0:
+        return pd.DataFrame()
+    
+    # Expected power based on irradiance ratio
+    expected_power = (result['Irradiance_Wm2'] / max_irr) * max_power
+    power_ratio = result['Power_W'] / expected_power.replace(0, np.nan)
+    
+    # Low power condition
+    low_power = power_ratio < power_ratio_threshold
+    
+    # Battery not full condition
+    if 'SoC_pct' in result.columns:
+        battery_not_full = result['SoC_pct'] < soc_threshold
+    else:
+        battery_not_full = True  # Assume true if no SoC data
+    
+    # Combine conditions
+    anomaly_mask = high_irr & low_power & battery_not_full
+    
+    anomalies = result[anomaly_mask].copy()
+    anomalies['Anomaly_Type'] = 'Power Dip (High Irr, Not Battery)'
+    anomalies['Expected_Power_W'] = expected_power[anomaly_mask]
+    anomalies['Power_Ratio'] = power_ratio[anomaly_mask]
+    
+    return anomalies
+
+
+def detect_voltage_clipping(
+    df: pd.DataFrame,
+    voltage_std_threshold: float = 0.5,
+    irradiance_std_threshold: float = 50.0,
+    window_size: int = 10
+) -> pd.DataFrame:
+    """
+    Detect voltage clipping where voltage stays constant despite irradiance variation.
+    
+    Args:
+        df: DataFrame with Voltage_V and Irradiance_Wm2
+        voltage_std_threshold: Max voltage std to consider "constant"
+        irradiance_std_threshold: Min irradiance std to consider "varying"
+        window_size: Rolling window size for detection
+    
+    Returns:
+        DataFrame with detected clipping periods
+    """
+    if 'Voltage_V' not in df.columns or 'Irradiance_Wm2' not in df.columns:
+        return pd.DataFrame()
+    
+    result = df.copy()
+    
+    # Calculate rolling statistics
+    voltage_std = result['Voltage_V'].rolling(window=window_size, center=True).std()
+    irr_std = result['Irradiance_Wm2'].rolling(window=window_size, center=True).std()
+    
+    # Clipping: constant voltage despite varying irradiance
+    clipping_mask = (voltage_std < voltage_std_threshold) & (irr_std > irradiance_std_threshold)
+    
+    anomalies = result[clipping_mask].copy()
+    anomalies['Anomaly_Type'] = 'Voltage Clipping'
+    anomalies['Voltage_Std'] = voltage_std[clipping_mask]
+    anomalies['Irradiance_Std'] = irr_std[clipping_mask]
+    
+    return anomalies
+
+
+def detect_current_limiting(
+    df: pd.DataFrame,
+    current_std_threshold: float = 0.2,
+    irradiance_min: float = 600.0,
+    window_size: int = 10
+) -> pd.DataFrame:
+    """
+    Detect current limiting where current plateaus despite high irradiance.
+    
+    Args:
+        df: DataFrame with Current_A and Irradiance_Wm2
+        current_std_threshold: Max current std to consider "plateau"
+        irradiance_min: Minimum irradiance for detection
+        window_size: Rolling window size
+    
+    Returns:
+        DataFrame with detected limiting periods
+    """
+    if 'Current_A' not in df.columns or 'Irradiance_Wm2' not in df.columns:
+        return pd.DataFrame()
+    
+    result = df.copy()
+    
+    # High irradiance condition
+    high_irr = result['Irradiance_Wm2'] >= irradiance_min
+    
+    # Calculate rolling current std
+    current_std = result['Current_A'].rolling(window=window_size, center=True).std()
+    
+    # Limiting: constant current during high irradiance
+    limiting_mask = (current_std < current_std_threshold) & high_irr
+    
+    anomalies = result[limiting_mask].copy()
+    anomalies['Anomaly_Type'] = 'Current Limiting'
+    anomalies['Current_Std'] = current_std[limiting_mask]
+    
+    return anomalies
+
+
+def detect_voltage_anomaly(
+    df: pd.DataFrame,
+    vmpp: float,
+    low_threshold: float = 0.8,
+    high_threshold: float = 1.1
+) -> pd.DataFrame:
+    """
+    Detect voltage anomalies outside 80-110% of Vmpp.
+    
+    Args:
+        df: DataFrame with Voltage_V
+        vmpp: Maximum power point voltage
+        low_threshold: Low ratio (default 0.8 = 80%)
+        high_threshold: High ratio (default 1.1 = 110%)
+    
+    Returns:
+        DataFrame with detected anomalies
+    """
+    if 'Voltage_V' not in df.columns or vmpp <= 0:
+        return pd.DataFrame()
+    
+    result = df.copy()
+    
+    voltage_ratio = result['Voltage_V'] / vmpp
+    
+    # Anomaly: outside 80-110% range (during operating hours)
+    operating = result['Voltage_V'] > 0 if 'Power_W' not in result.columns else result['Power_W'] > 0
+    anomaly_mask = operating & ((voltage_ratio < low_threshold) | (voltage_ratio > high_threshold))
+    
+    anomalies = result[anomaly_mask].copy()
+    anomalies['Anomaly_Type'] = 'Voltage Anomaly'
+    anomalies['Voltage_Ratio'] = voltage_ratio[anomaly_mask]
+    anomalies['Vmpp'] = vmpp
+    
+    return anomalies
+
+
+def detect_current_anomaly(
+    df: pd.DataFrame,
+    impp: float,
+    high_threshold: float = 1.1
+) -> pd.DataFrame:
+    """
+    Detect current anomalies where I > 110% of Impp.
+    
+    Args:
+        df: DataFrame with Current_A
+        impp: Maximum power point current
+        high_threshold: High ratio (default 1.1 = 110%)
+    
+    Returns:
+        DataFrame with detected anomalies
+    """
+    if 'Current_A' not in df.columns or impp <= 0:
+        return pd.DataFrame()
+    
+    result = df.copy()
+    
+    current_ratio = result['Current_A'] / impp
+    
+    # Anomaly: current > 110% of Impp
+    anomaly_mask = current_ratio > high_threshold
+    
+    anomalies = result[anomaly_mask].copy()
+    anomalies['Anomaly_Type'] = 'Current Anomaly'
+    anomalies['Current_Ratio'] = current_ratio[anomaly_mask]
+    anomalies['Impp'] = impp
+    
+    return anomalies
+
+
+def get_all_anomalies(
+    df: pd.DataFrame,
+    vmpp: float = 30.0,
+    impp: float = 8.0
+) -> Dict[str, pd.DataFrame]:
+    """
+    Detect all types of anomalies and return as dictionary.
+    
+    Args:
+        df: DataFrame with all sensor columns
+        vmpp: Maximum power point voltage
+        impp: Maximum power point current
+    
+    Returns:
+        Dictionary with anomaly type as key, DataFrame as value
+    """
+    anomalies = {}
+    
+    # Power dip anomalies
+    power_dips = detect_power_dip_anomalies(df)
+    if len(power_dips) > 0:
+        anomalies['Power Dip (High Irr, Not Battery)'] = power_dips
+    
+    # Voltage clipping
+    voltage_clipping = detect_voltage_clipping(df)
+    if len(voltage_clipping) > 0:
+        anomalies['Voltage Clipping'] = voltage_clipping
+    
+    # Current limiting
+    current_limiting = detect_current_limiting(df)
+    if len(current_limiting) > 0:
+        anomalies['Current Limiting'] = current_limiting
+    
+    # Voltage anomaly
+    voltage_anomaly = detect_voltage_anomaly(df, vmpp)
+    if len(voltage_anomaly) > 0:
+        anomalies['Voltage Anomaly'] = voltage_anomaly
+    
+    # Current anomaly
+    current_anomaly = detect_current_anomaly(df, impp)
+    if len(current_anomaly) > 0:
+        anomalies['Current Anomaly'] = current_anomaly
+    
+    return anomalies
+

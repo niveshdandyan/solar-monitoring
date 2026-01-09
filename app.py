@@ -21,7 +21,13 @@ from modules.calculations import (
     calculate_expected_power,
     calculate_daily_metrics,
     calculate_monthly_metrics,
-    calculate_performance_ratio
+    calculate_performance_ratio,
+    get_all_anomalies,
+    detect_power_dip_anomalies,
+    detect_voltage_clipping,
+    detect_current_limiting,
+    detect_voltage_anomaly,
+    detect_current_anomaly
 )
 from modules.visualizations import (
     plot_daily_power_irradiance,
@@ -48,6 +54,13 @@ from modules.export import (
     clean_export_directory,
     get_export_summary,
     export_dataframe_to_csv
+)
+from modules.data_quality import (
+    check_data_completeness,
+    validate_data_ranges,
+    fill_data_gaps,
+    detect_duplicates,
+    get_data_quality_report
 )
 
 # Page configuration
@@ -167,6 +180,28 @@ def main():
             max_value=100,
             value=95,
             help="Exclude data points where SoC is above this threshold from PR calculation"
+        )
+        
+        st.markdown("---")
+        st.subheader("⚡ MPP Settings")
+        st.caption("For anomaly detection")
+        
+        vmpp = st.number_input(
+            "Vmpp (V)",
+            min_value=1.0,
+            max_value=100.0,
+            value=30.0,
+            step=0.5,
+            help="Maximum Power Point Voltage - used for voltage anomaly detection (outside 80-110%)"
+        )
+        
+        impp = st.number_input(
+            "Impp (A)",
+            min_value=0.1,
+            max_value=50.0,
+            value=8.0,
+            step=0.1,
+            help="Maximum Power Point Current - used for current anomaly detection (>110%)"
         )
         
         st.markdown("---")
@@ -327,12 +362,14 @@ def display_analysis_results():
     st.markdown("---")
     
     # Tabs for different visualizations
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "📈 Daily Graphs", 
         "📊 PR & Yield Analysis", 
         "🌡️ Temperature Effects",
-        "� Calendar View",
-        "�💾 Export All"
+        "📅 Calendar View",
+        "🔍 Anomaly Analysis",
+        "📋 Data Quality",
+        "💾 Export All"
     ])
     
     with tab1:
@@ -348,6 +385,12 @@ def display_analysis_results():
         display_calendar_view(daily_metrics)
     
     with tab5:
+        display_anomaly_analysis(analysis_df, vmpp, impp)
+    
+    with tab6:
+        display_data_quality(analysis_df)
+    
+    with tab7:
         display_export_section(analysis_df, daily_metrics, monthly_metrics, EXPORT_DIR)
 
 
@@ -702,5 +745,248 @@ def display_export_section(analysis_df, daily_metrics, monthly_metrics, export_d
             )
 
 
+def display_anomaly_analysis(analysis_df: pd.DataFrame, vmpp: float, impp: float):
+    """Display anomaly detection analysis with time series and summary tables."""
+    
+    st.header("🔍 Anomaly Analysis")
+    st.caption(f"Using Vmpp = {vmpp}V, Impp = {impp}A (configure in sidebar)")
+    
+    # Get all anomalies
+    all_anomalies = get_all_anomalies(analysis_df, vmpp, impp)
+    
+    # Summary metrics
+    st.subheader("📊 Anomaly Summary")
+    
+    if len(all_anomalies) == 0:
+        st.success("✅ No anomalies detected in the data!")
+        return
+    
+    # Create summary cards
+    cols = st.columns(5)
+    anomaly_types = [
+        "Power Dip (High Irr, Not Battery)",
+        "Voltage Clipping",
+        "Current Limiting",
+        "Voltage Anomaly",
+        "Current Anomaly"
+    ]
+    
+    for i, anomaly_type in enumerate(anomaly_types):
+        count = len(all_anomalies.get(anomaly_type, pd.DataFrame()))
+        with cols[i]:
+            st.metric(
+                label=anomaly_type.split("(")[0].strip(),
+                value=count,
+                delta="⚠️" if count > 0 else "✅"
+            )
+    
+    st.markdown("---")
+    
+    # Anomaly type selector
+    st.subheader("🔎 Detailed Anomaly View")
+    
+    available_anomalies = list(all_anomalies.keys())
+    
+    if len(available_anomalies) == 0:
+        st.info("No anomalies detected to display.")
+        return
+    
+    selected_anomaly = st.selectbox(
+        "Select Anomaly Type",
+        available_anomalies,
+        help="Choose an anomaly type to view detailed information"
+    )
+    
+    if selected_anomaly:
+        anomaly_df = all_anomalies[selected_anomaly]
+        
+        # Time series plot with anomaly markers
+        st.subheader(f"📈 Time Series: {selected_anomaly}")
+        
+        import matplotlib.pyplot as plt
+        
+        fig, ax = plt.subplots(figsize=(14, 5))
+        
+        # Plot base data
+        if 'Power_W' in analysis_df.columns:
+            ax.plot(analysis_df['Timestamp'], analysis_df['Power_W']/1000, 
+                   color='#3498DB', alpha=0.5, linewidth=0.5, label='Power (kW)')
+        
+        # Mark anomaly points
+        if 'Timestamp' in anomaly_df.columns:
+            if 'Power_W' in anomaly_df.columns:
+                ax.scatter(anomaly_df['Timestamp'], anomaly_df['Power_W']/1000,
+                          color='red', s=20, zorder=5, label=f'{selected_anomaly} ({len(anomaly_df)} points)')
+            elif 'Voltage_V' in anomaly_df.columns:
+                ax.scatter(anomaly_df['Timestamp'], anomaly_df['Voltage_V'],
+                          color='red', s=20, zorder=5, label=f'{selected_anomaly} ({len(anomaly_df)} points)')
+        
+        ax.set_xlabel('Timestamp')
+        ax.set_ylabel('Value')
+        ax.set_title(f'{selected_anomaly} Detection')
+        ax.legend(loc='upper right')
+        ax.grid(True, alpha=0.3)
+        plt.xticks(rotation=45)
+        fig.tight_layout()
+        
+        st.pyplot(fig)
+        plt.close()
+        
+        # Summary table
+        st.subheader(f"📋 Anomaly Details ({len(anomaly_df)} events)")
+        
+        # Select relevant columns for display
+        display_cols = ['Timestamp']
+        if 'Power_W' in anomaly_df.columns:
+            display_cols.append('Power_W')
+        if 'Voltage_V' in anomaly_df.columns:
+            display_cols.append('Voltage_V')
+        if 'Current_A' in anomaly_df.columns:
+            display_cols.append('Current_A')
+        if 'Irradiance_Wm2' in anomaly_df.columns:
+            display_cols.append('Irradiance_Wm2')
+        if 'SoC_pct' in anomaly_df.columns:
+            display_cols.append('SoC_pct')
+        if 'Power_Ratio' in anomaly_df.columns:
+            display_cols.append('Power_Ratio')
+        if 'Voltage_Ratio' in anomaly_df.columns:
+            display_cols.append('Voltage_Ratio')
+        if 'Current_Ratio' in anomaly_df.columns:
+            display_cols.append('Current_Ratio')
+        
+        available_cols = [c for c in display_cols if c in anomaly_df.columns]
+        
+        st.dataframe(
+            anomaly_df[available_cols].head(100),
+            use_container_width=True
+        )
+        
+        if len(anomaly_df) > 100:
+            st.caption(f"Showing first 100 of {len(anomaly_df)} anomalies")
+        
+        # Download button for anomaly data
+        csv = anomaly_df.to_csv(index=False)
+        st.download_button(
+            label=f"📥 Download {selected_anomaly} Data",
+            data=csv,
+            file_name=f"anomalies_{selected_anomaly.replace(' ', '_').lower()}.csv",
+            mime="text/csv"
+        )
+
+
+def display_data_quality(analysis_df: pd.DataFrame):
+    """Display data quality analysis and checks."""
+    
+    st.header("📋 Data Quality Analysis")
+    
+    # Get comprehensive quality report
+    quality_report = get_data_quality_report(analysis_df)
+    
+    # Quality Score Card
+    st.subheader("📊 Overall Data Quality")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        score = quality_report.get('quality_score', 0)
+        grade = quality_report.get('quality_grade', 'N/A')
+        st.metric("Quality Score", f"{score:.1f}/100", grade)
+    
+    with col2:
+        completeness = quality_report.get('completeness', {}).get('overall_completeness_pct', 0)
+        st.metric("Completeness", f"{completeness:.1f}%")
+    
+    with col3:
+        suspicious = quality_report.get('validation', {}).get('suspicious_count', 0)
+        st.metric("Suspicious Readings", suspicious)
+    
+    with col4:
+        duplicates = quality_report.get('duplicates', {}).get('duplicate_count', 0)
+        st.metric("Duplicate Rows", duplicates)
+    
+    st.markdown("---")
+    
+    # Data Completeness Section
+    with st.expander("📈 Data Completeness", expanded=True):
+        completeness_info = quality_report.get('completeness', {})
+        
+        if 'error' not in completeness_info:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write(f"**Expected Data Points:** {completeness_info.get('expected_points', 'N/A')}")
+                st.write(f"**Actual Data Points:** {completeness_info.get('actual_points', 'N/A')}")
+                st.write(f"**Completeness:** {completeness_info.get('overall_completeness_pct', 0):.1f}%")
+            
+            with col2:
+                data_range = completeness_info.get('data_range', {})
+                if data_range:
+                    st.write(f"**Start:** {data_range.get('start', 'N/A')}")
+                    st.write(f"**End:** {data_range.get('end', 'N/A')}")
+                    st.write(f"**Duration:** {data_range.get('duration_hours', 0):.1f} hours")
+            
+            # Missing periods
+            missing_periods = completeness_info.get('missing_periods', [])
+            if len(missing_periods) > 0:
+                st.warning(f"⚠️ Found {len(missing_periods)} data gaps")
+                gaps_df = pd.DataFrame(missing_periods)
+                st.dataframe(gaps_df, use_container_width=True)
+            else:
+                st.success("✅ No significant data gaps detected")
+    
+    # Data Validation Section
+    with st.expander("🔍 Data Validation", expanded=False):
+        validation_info = quality_report.get('validation', {})
+        
+        # Column statistics
+        col_stats = validation_info.get('column_stats', {})
+        if col_stats:
+            st.write("**Column Statistics:**")
+            stats_data = []
+            for col, stats in col_stats.items():
+                stats_data.append({
+                    'Column': col,
+                    'Min': f"{stats.get('min', 'N/A'):.2f}" if isinstance(stats.get('min'), (int, float)) else 'N/A',
+                    'Max': f"{stats.get('max', 'N/A'):.2f}" if isinstance(stats.get('max'), (int, float)) else 'N/A',
+                    'Mean': f"{stats.get('mean', 'N/A'):.2f}" if isinstance(stats.get('mean'), (int, float)) else 'N/A',
+                    'Null Count': stats.get('null_count', 0),
+                    'Out of Range': stats.get('out_of_range_count', 0),
+                    'Valid Range': str(stats.get('valid_range', 'N/A'))
+                })
+            st.dataframe(pd.DataFrame(stats_data), use_container_width=True)
+        
+        # Suspicious readings
+        suspicious_readings = validation_info.get('suspicious_readings', [])
+        if len(suspicious_readings) > 0:
+            st.warning(f"⚠️ Found {len(suspicious_readings)} suspicious readings")
+            st.dataframe(pd.DataFrame(suspicious_readings).head(50), use_container_width=True)
+        else:
+            st.success("✅ All readings within expected ranges")
+    
+    # Duplicate Detection Section
+    with st.expander("📑 Duplicate Detection", expanded=False):
+        duplicates_info = quality_report.get('duplicates', {})
+        
+        if duplicates_info.get('has_duplicates', False):
+            st.warning(f"⚠️ Found {duplicates_info.get('duplicate_count', 0)} duplicate rows")
+            st.write(f"**Unique duplicate timestamps:** {duplicates_info.get('unique_duplicate_timestamps', 0)}")
+            
+            duplicate_groups = duplicates_info.get('duplicate_groups', [])
+            if duplicate_groups:
+                st.dataframe(pd.DataFrame(duplicate_groups[:20]), use_container_width=True)
+        else:
+            st.success("✅ No duplicate timestamps detected")
+    
+    # Operating Hours Summary (from daily metrics if available)
+    with st.expander("⏱️ Operating Hours", expanded=False):
+        if 'Power_W' in analysis_df.columns:
+            from modules.calculations import calculate_operating_hours
+            total_hours = calculate_operating_hours(analysis_df)
+            st.metric("Total Operating Hours", f"{total_hours:.1f} hrs")
+        else:
+            st.info("Operating hours require Power data")
+
+
 if __name__ == "__main__":
     main()
+
