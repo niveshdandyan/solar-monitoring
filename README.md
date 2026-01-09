@@ -141,6 +141,10 @@ solar-monitoring/
 ### Daily Performance Graphs
 ![Daily Graphs](docs/images/daily_graphs.png)
 
+### Calendar View (New Feature!)
+![Calendar View](docs/images/calendar_view.png)
+*Color-coded calendar showing daily energy production (kWh) and irradiance (W/m²) with anomaly detection*
+
 ### PR Analysis
 ![PR Analysis](docs/images/pr_analysis.png)
 
