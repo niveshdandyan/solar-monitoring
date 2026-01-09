@@ -290,38 +290,81 @@ def calculate_monthly_metrics(
 def calculate_operating_hours(df: pd.DataFrame, power_threshold: float = 0.0) -> float:
     """
     Calculate operating hours where Power > threshold.
-    Counts the number of data points with power generation and converts to hours.
+    ROBUST version that handles multiple power column names and intervals.
     
     Args:
-        df: DataFrame with Timestamp and Power_W columns
+        df: DataFrame with Timestamp and power columns (Power_W or Power_kW)
         power_threshold: Minimum power to count as operating (default 0W)
     
     Returns:
         Operating hours (float)
     """
-    if 'Power_W' not in df.columns or 'Timestamp' not in df.columns:
+    if df is None or len(df) == 0:
         return 0.0
     
-    # Filter to power > threshold
-    operating_df = df[df['Power_W'] > power_threshold].copy()
+    if 'Timestamp' not in df.columns:
+        return 0.0
     
-    if len(operating_df) < 2:
+    # Find power column (try multiple names)
+    power_col = None
+    power_multiplier = 1  # Convert to watts if needed
+    
+    if 'Power_W' in df.columns:
+        power_col = 'Power_W'
+        power_multiplier = 1
+    elif 'Power_kW' in df.columns:
+        power_col = 'Power_kW'
+        power_multiplier = 1000  # Convert kW to W
+    else:
+        # No power column found
+        return 0.0
+    
+    # Create a working copy
+    working_df = df[[power_col, 'Timestamp']].copy()
+    working_df['Power_W'] = working_df[power_col] * power_multiplier
+    
+    # Filter to power > threshold
+    operating_df = working_df[working_df['Power_W'] > power_threshold].copy()
+    
+    if len(operating_df) == 0:
         return 0.0
     
     # Sort by timestamp
-    operating_df = operating_df.sort_values('Timestamp')
+    operating_df = operating_df.sort_values('Timestamp').reset_index(drop=True)
     
-    # Detect the data interval (median time between points)
-    time_diffs = operating_df['Timestamp'].diff().dt.total_seconds() / 3600
-    valid_diffs = time_diffs[(time_diffs > 0) & (time_diffs < 2)]  # Filter out unreasonable gaps
+    if len(operating_df) == 1:
+        # Only one point - estimate 1 interval
+        # Try to detect interval from full dataset
+        if len(df) >= 2:
+            df_sorted = df.sort_values('Timestamp')
+            time_diffs = df_sorted['Timestamp'].diff().dt.total_seconds() / 3600
+            valid_diffs = time_diffs[(time_diffs > 0) & (time_diffs < 3)]
+            if len(valid_diffs) > 0:
+                return valid_diffs.median()
+        return 1.0  # Default to 1 hour
     
-    if len(valid_diffs) > 0:
-        interval_hours = valid_diffs.median()
+    # Calculate time differences between consecutive operating points
+    time_diffs_hours = operating_df['Timestamp'].diff().dt.total_seconds() / 3600
+    
+    # Remove the first NaN
+    time_diffs_hours = time_diffs_hours.dropna()
+    
+    if len(time_diffs_hours) == 0:
+        return 1.0  # Single point, assume 1 hour
+    
+    # Detect the normal logging interval (median of small gaps)
+    # Filter to reasonable intervals (< 3 hours to exclude overnight gaps)
+    reasonable_intervals = time_diffs_hours[time_diffs_hours < 3]
+    
+    if len(reasonable_intervals) > 0:
+        detected_interval = reasonable_intervals.median()
     else:
-        interval_hours = 1.0  # Default to 1 hour
+        # All gaps are large - use minimum
+        detected_interval = time_diffs_hours.min()
     
-    # Total operating hours = number of operating points × interval
-    total_operating_hours = len(operating_df) * interval_hours
+    # Method: Count operating points × interval
+    # This is more robust than summing gaps
+    total_operating_hours = len(operating_df) * detected_interval
     
     return total_operating_hours
 
