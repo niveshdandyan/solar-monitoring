@@ -273,6 +273,7 @@ def calculate_monthly_metrics(
             'Avg_Temperature': month_df[month_df['Hour'].between(6, 18)]['Temperature_C'].mean() if 'Temperature_C' in month_df.columns and 'Hour' in month_df.columns else (month_df['Temperature_C'].mean() if 'Temperature_C' in month_df.columns else None),
             'Max_Power_kW': month_with_power['Power_kW'].max() if 'Power_kW' in month_with_power.columns else None,
             'Total_Operating_Hours': calculate_operating_hours(month_with_power),
+            'Avg_Operating_Hours': calculate_operating_hours(month_with_power) / month_df['Date'].nunique() if 'Date' in month_df.columns and month_df['Date'].nunique() > 0 else 0,
             'Days_with_Data': month_df['Date'].nunique() if 'Date' in month_df.columns else None,
             'Data_Points': len(month_df),
             'High_SoC_Points': (month_df['SoC_pct'] >= 95).sum() if 'SoC_pct' in month_df.columns else 0
@@ -289,6 +290,7 @@ def calculate_monthly_metrics(
 def calculate_operating_hours(df: pd.DataFrame, power_threshold: float = 0.0) -> float:
     """
     Calculate operating hours where Power > threshold.
+    Counts the number of data points with power generation and converts to hours.
     
     Args:
         df: DataFrame with Timestamp and Power_W columns
@@ -309,13 +311,19 @@ def calculate_operating_hours(df: pd.DataFrame, power_threshold: float = 0.0) ->
     # Sort by timestamp
     operating_df = operating_df.sort_values('Timestamp')
     
-    # Calculate time differences
+    # Detect the data interval (median time between points)
     time_diffs = operating_df['Timestamp'].diff().dt.total_seconds() / 3600
+    valid_diffs = time_diffs[(time_diffs > 0) & (time_diffs < 2)]  # Filter out unreasonable gaps
     
-    # Only count reasonable intervals (< 1 hour gaps)
-    valid_diffs = time_diffs[time_diffs < 1.0]
+    if len(valid_diffs) > 0:
+        interval_hours = valid_diffs.median()
+    else:
+        interval_hours = 1.0  # Default to 1 hour
     
-    return valid_diffs.sum()
+    # Total operating hours = number of operating points × interval
+    total_operating_hours = len(operating_df) * interval_hours
+    
+    return total_operating_hours
 
 
 # =============================================================================
