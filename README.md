@@ -72,8 +72,8 @@ The application accepts CSV files with the following columns:
 | Timestamp | Date and time | Various formats supported |
 | DC Current (A) | Solar panel current | Amperes |
 | DC Voltage (V) | Solar panel voltage | Volts |
-| Irradiance (W/m2) | Solar irradiance | W/m² |
-| Cell Temperature (C) | Module temperature | °C |
+| Irradiance (W/m2) | Solar irradiance (optional) | W/m² |
+| Cell Temperature (C) | Module temperature (optional) | °C |
 | Battery SoC (%) | State of charge (optional) | % |
 
 ### Supported Date Formats

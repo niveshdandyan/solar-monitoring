@@ -127,16 +127,30 @@ def calculate_performance_ratio(
         calc_df = df.copy()
         rows_excluded = 0
     
-    # Need both actual and expected power
-    if 'Power_W' not in calc_df.columns or 'Irradiance_Wm2' not in calc_df.columns:
+    # Need actual power at minimum
+    if 'Power_W' not in calc_df.columns:
         return {
             'pr_value': None,
-            'error': 'Missing required columns (Power_W or Irradiance_Wm2)'
+            'error': 'Missing required column (Power_W)'
         }
     
-    # Calculate expected power if not already done
-    if 'Expected_Power_W' not in calc_df.columns:
+    # Calculate expected power if irradiance is available
+    if 'Irradiance_Wm2' in calc_df.columns and 'Expected_Power_W' not in calc_df.columns:
         calc_df = calculate_expected_power(calc_df, nominal_power_kw, temp_coefficient)
+    
+    # If no expected power available (no irradiance), cannot calculate PR
+    if 'Expected_Power_W' not in calc_df.columns:
+        return {
+            'pr_value': None,
+            'actual_energy_wh': calculate_energy(calc_df, 'Power_W'),
+            'actual_energy_kwh': calculate_energy(calc_df, 'Power_W') / 1000,
+            'expected_energy_wh': None,
+            'expected_energy_kwh': None,
+            'rows_used': len(calc_df),
+            'rows_excluded_high_soc': rows_excluded,
+            'soc_threshold': soc_threshold if filter_high_soc else None,
+            'info': 'Irradiance not available - cannot calculate PR or expected energy'
+        }
     
     # Calculate energies
     actual_energy_wh = calculate_energy(calc_df, 'Power_W')
