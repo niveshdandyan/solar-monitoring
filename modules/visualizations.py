@@ -394,6 +394,853 @@ def plot_daily_current_irradiance(
 
 
 # ============================================================================
+# MONTHLY HOURLY AVERAGE GRAPHS
+# ============================================================================
+
+def calculate_monthly_hourly_averages(df: pd.DataFrame, month: str) -> pd.DataFrame:
+    """
+    Calculate hourly averages for a given month.
+    Groups all data by hour of day and computes mean values.
+    
+    Args:
+        df: DataFrame with Timestamp and sensor columns
+        month: Month string in format 'YYYY-MM' (matching the Month column)
+    
+    Returns:
+        DataFrame with Hour column and averaged sensor values
+    """
+    # Filter data for the selected month
+    if 'Month' not in df.columns:
+        return pd.DataFrame()
+    
+    month_df = df[df['Month'].astype(str) == str(month)].copy()
+    
+    if len(month_df) == 0:
+        return pd.DataFrame()
+    
+    # Extract hour from timestamp
+    month_df['Hour'] = month_df['Timestamp'].dt.hour
+    
+    # Filter for daytime hours (6 AM to 6 PM)
+    month_df = month_df[(month_df['Hour'] >= 6) & (month_df['Hour'] <= 18)]
+    
+    if len(month_df) == 0:
+        return pd.DataFrame()
+    
+    # Group by hour and calculate mean
+    numeric_cols = ['Power_W', 'Irradiance_Wm2', 'Voltage_V', 'Current_A', 'SoC_pct', 'Temperature_C']
+    available_cols = ['Hour'] + [col for col in numeric_cols if col in month_df.columns]
+    
+    hourly_avg = month_df[available_cols].groupby('Hour').mean().reset_index()
+    
+    return hourly_avg
+
+
+def plot_monthly_hourly_power_irradiance(
+    df: pd.DataFrame,
+    month: str,
+    output_dir: str,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """
+    Create monthly hourly-averaged Power and Irradiance graph.
+    Shows the average Power and Irradiance at each hour across all days in the month.
+    """
+    hourly_avg = calculate_monthly_hourly_averages(df, month)
+    
+    if len(hourly_avg) == 0:
+        return None
+    
+    fig, ax1 = plt.subplots(figsize=DEFAULT_FIGSIZE)
+    
+    # Plot Power on primary axis
+    if 'Power_W' in hourly_avg.columns:
+        ax1.plot(hourly_avg['Hour'], hourly_avg['Power_W'], 
+                color=COLORS['power'], linewidth=2.5, marker='o', markersize=8, label='Avg Power (W)')
+        ax1.set_ylabel('Average Power (W)', color=COLORS['power'], fontsize=12, fontweight='bold')
+        ax1.tick_params(axis='y', labelcolor=COLORS['power'])
+        ax1.fill_between(hourly_avg['Hour'], hourly_avg['Power_W'], alpha=0.2, color=COLORS['power'])
+    
+    # Create secondary axis for Irradiance
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        ax2 = ax1.twinx()
+        ax2.plot(hourly_avg['Hour'], hourly_avg['Irradiance_Wm2'], 
+                color=COLORS['irradiance'], linewidth=2.5, linestyle='--', marker='s', markersize=6, label='Avg Irradiance (W/m²)')
+        ax2.set_ylabel('Average Irradiance (W/m²)', color=COLORS['irradiance'], fontsize=12, fontweight='bold')
+        ax2.tick_params(axis='y', labelcolor=COLORS['irradiance'])
+    
+    # Format x-axis
+    ax1.set_xticks(hourly_avg['Hour'])
+    ax1.set_xticklabels([f'{h}:00' for h in hourly_avg['Hour']], rotation=45, ha='right')
+    
+    # Title and labels
+    ax1.set_xlabel('Hour of Day', fontsize=12, fontweight='bold')
+    ax1.set_title(f'Average Hourly Power & Irradiance - {month}', fontsize=14, fontweight='bold', pad=20)
+    
+    # Combined legend
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+    else:
+        ax1.legend(loc='upper right')
+    
+    ax1.grid(True, alpha=0.3)
+    fig.tight_layout()
+    
+    if show_plot:
+        return fig
+    
+    # Save
+    filename = f"{month}_Monthly_Hourly_Power_Irradiance.png"
+    filepath = os.path.join(output_dir, 'monthly', filename)
+    return save_figure(fig, filepath)
+
+
+def plot_monthly_hourly_power_irradiance_soc(
+    df: pd.DataFrame,
+    month: str,
+    output_dir: str,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """
+    Create monthly hourly-averaged Power, Irradiance, and Battery SoC graph.
+    """
+    hourly_avg = calculate_monthly_hourly_averages(df, month)
+    
+    if len(hourly_avg) == 0:
+        return None
+    
+    fig, ax1 = plt.subplots(figsize=DEFAULT_FIGSIZE)
+    
+    # Plot Power on primary axis
+    line1 = None
+    if 'Power_W' in hourly_avg.columns:
+        line1, = ax1.plot(hourly_avg['Hour'], hourly_avg['Power_W'], 
+                color=COLORS['power'], linewidth=2.5, marker='o', markersize=8, label='Avg Power (W)')
+        ax1.set_ylabel('Average Power (W)', color=COLORS['power'], fontsize=12, fontweight='bold')
+        ax1.tick_params(axis='y', labelcolor=COLORS['power'])
+    
+    # Create secondary axis for Irradiance
+    ax2 = ax1.twinx()
+    line2 = None
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        line2, = ax2.plot(hourly_avg['Hour'], hourly_avg['Irradiance_Wm2'], 
+                color=COLORS['irradiance'], linewidth=2.5, linestyle='--', marker='s', markersize=6, label='Avg Irradiance (W/m²)')
+        ax2.set_ylabel('Average Irradiance (W/m²)', color=COLORS['irradiance'], fontsize=12, fontweight='bold')
+        ax2.tick_params(axis='y', labelcolor=COLORS['irradiance'])
+    
+    # Create third axis for SoC
+    line3 = None
+    if 'SoC_pct' in hourly_avg.columns:
+        ax3 = ax1.twinx()
+        ax3.spines['right'].set_position(('axes', 1.12))
+        line3, = ax3.plot(hourly_avg['Hour'], hourly_avg['SoC_pct'], 
+                color=COLORS['soc'], linewidth=2.5, linestyle=':', marker='^', markersize=6, label='Avg Battery SoC (%)')
+        ax3.set_ylabel('Average Battery SoC (%)', color=COLORS['soc'], fontsize=12, fontweight='bold')
+        ax3.tick_params(axis='y', labelcolor=COLORS['soc'])
+        ax3.set_ylim(0, 105)
+    
+    # Format x-axis
+    ax1.set_xticks(hourly_avg['Hour'])
+    ax1.set_xticklabels([f'{h}:00' for h in hourly_avg['Hour']], rotation=45, ha='right')
+    
+    # Title and labels
+    ax1.set_xlabel('Hour of Day', fontsize=12, fontweight='bold')
+    ax1.set_title(f'Average Hourly Power, Irradiance & Battery SoC - {month}', fontsize=14, fontweight='bold', pad=20)
+    
+    # Combined legend
+    lines = []
+    labels = []
+    if line1:
+        lines.append(line1)
+        labels.append('Avg Power (W)')
+    if line2:
+        lines.append(line2)
+        labels.append('Avg Irradiance (W/m²)')
+    if line3:
+        lines.append(line3)
+        labels.append('Avg Battery SoC (%)')
+    
+    ax1.legend(lines, labels, loc='upper left')
+    ax1.grid(True, alpha=0.3)
+    fig.tight_layout()
+    
+    if show_plot:
+        return fig
+    
+    # Save
+    filename = f"{month}_Monthly_Hourly_Power_Irradiance_SoC.png"
+    filepath = os.path.join(output_dir, 'monthly', filename)
+    return save_figure(fig, filepath)
+
+
+def plot_monthly_hourly_voltage_irradiance(
+    df: pd.DataFrame,
+    month: str,
+    output_dir: str,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """
+    Create monthly hourly-averaged Voltage and Irradiance graph.
+    """
+    hourly_avg = calculate_monthly_hourly_averages(df, month)
+    
+    if len(hourly_avg) == 0 or 'Voltage_V' not in hourly_avg.columns:
+        return None
+    
+    fig, ax1 = plt.subplots(figsize=DEFAULT_FIGSIZE)
+    
+    # Plot Voltage on primary axis
+    ax1.plot(hourly_avg['Hour'], hourly_avg['Voltage_V'], 
+            color='#9B59B6', linewidth=2.5, marker='o', markersize=8, label='Avg Voltage (V)')
+    ax1.set_ylabel('Average Voltage (V)', color='#9B59B6', fontsize=12, fontweight='bold')
+    ax1.tick_params(axis='y', labelcolor='#9B59B6')
+    ax1.fill_between(hourly_avg['Hour'], hourly_avg['Voltage_V'], alpha=0.2, color='#9B59B6')
+    
+    # Create secondary axis for Irradiance
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        ax2 = ax1.twinx()
+        ax2.plot(hourly_avg['Hour'], hourly_avg['Irradiance_Wm2'], 
+                color=COLORS['irradiance'], linewidth=2.5, linestyle='--', marker='s', markersize=6, label='Avg Irradiance (W/m²)')
+        ax2.set_ylabel('Average Irradiance (W/m²)', color=COLORS['irradiance'], fontsize=12, fontweight='bold')
+        ax2.tick_params(axis='y', labelcolor=COLORS['irradiance'])
+    
+    # Format x-axis
+    ax1.set_xticks(hourly_avg['Hour'])
+    ax1.set_xticklabels([f'{h}:00' for h in hourly_avg['Hour']], rotation=45, ha='right')
+    
+    # Title and labels
+    ax1.set_xlabel('Hour of Day', fontsize=12, fontweight='bold')
+    ax1.set_title(f'Average Hourly Voltage & Irradiance - {month}', fontsize=14, fontweight='bold', pad=20)
+    
+    # Combined legend
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+    else:
+        ax1.legend(loc='upper right')
+    
+    ax1.grid(True, alpha=0.3)
+    fig.tight_layout()
+    
+    if show_plot:
+        return fig
+    
+    # Save
+    filename = f"{month}_Monthly_Hourly_Voltage_Irradiance.png"
+    filepath = os.path.join(output_dir, 'monthly', filename)
+    return save_figure(fig, filepath)
+
+
+def plot_monthly_hourly_current_irradiance(
+    df: pd.DataFrame,
+    month: str,
+    output_dir: str,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """
+    Create monthly hourly-averaged Current and Irradiance graph.
+    """
+    hourly_avg = calculate_monthly_hourly_averages(df, month)
+    
+    if len(hourly_avg) == 0 or 'Current_A' not in hourly_avg.columns:
+        return None
+    
+    fig, ax1 = plt.subplots(figsize=DEFAULT_FIGSIZE)
+    
+    # Plot Current on primary axis
+    ax1.plot(hourly_avg['Hour'], hourly_avg['Current_A'], 
+            color='#E74C3C', linewidth=2.5, marker='o', markersize=8, label='Avg Current (A)')
+    ax1.set_ylabel('Average Current (A)', color='#E74C3C', fontsize=12, fontweight='bold')
+    ax1.tick_params(axis='y', labelcolor='#E74C3C')
+    ax1.fill_between(hourly_avg['Hour'], hourly_avg['Current_A'], alpha=0.2, color='#E74C3C')
+    
+    # Create secondary axis for Irradiance
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        ax2 = ax1.twinx()
+        ax2.plot(hourly_avg['Hour'], hourly_avg['Irradiance_Wm2'], 
+                color=COLORS['irradiance'], linewidth=2.5, linestyle='--', marker='s', markersize=6, label='Avg Irradiance (W/m²)')
+        ax2.set_ylabel('Average Irradiance (W/m²)', color=COLORS['irradiance'], fontsize=12, fontweight='bold')
+        ax2.tick_params(axis='y', labelcolor=COLORS['irradiance'])
+    
+    # Format x-axis
+    ax1.set_xticks(hourly_avg['Hour'])
+    ax1.set_xticklabels([f'{h}:00' for h in hourly_avg['Hour']], rotation=45, ha='right')
+    
+    # Title and labels
+    ax1.set_xlabel('Hour of Day', fontsize=12, fontweight='bold')
+    ax1.set_title(f'Average Hourly Current & Irradiance - {month}', fontsize=14, fontweight='bold', pad=20)
+    
+    # Combined legend
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+    else:
+        ax1.legend(loc='upper right')
+    
+    ax1.grid(True, alpha=0.3)
+    fig.tight_layout()
+    
+    if show_plot:
+        return fig
+    
+    # Save
+    filename = f"{month}_Monthly_Hourly_Current_Irradiance.png"
+    filepath = os.path.join(output_dir, 'monthly', filename)
+    return save_figure(fig, filepath)
+
+
+# ============================================================================
+# CUSTOM DATE RANGE HOURLY AVERAGE GRAPHS
+# ============================================================================
+
+def calculate_custom_range_hourly_averages(
+    df: pd.DataFrame, 
+    start_date: str, 
+    end_date: str
+) -> pd.DataFrame:
+    """
+    Calculate hourly averages for a custom date range.
+    Groups all data by hour of day and computes mean values.
+    
+    Args:
+        df: DataFrame with Timestamp and sensor columns
+        start_date: Start date string in format 'YYYY-MM-DD'
+        end_date: End date string in format 'YYYY-MM-DD'
+    
+    Returns:
+        DataFrame with Hour column and averaged sensor values
+    """
+    if 'Date' not in df.columns:
+        return pd.DataFrame()
+    
+    # Convert dates for comparison
+    start = pd.to_datetime(start_date).date()
+    end = pd.to_datetime(end_date).date()
+    
+    # Filter data for the date range
+    range_df = df[(df['Date'] >= start) & (df['Date'] <= end)].copy()
+    
+    if len(range_df) == 0:
+        return pd.DataFrame()
+    
+    # Extract hour from timestamp
+    range_df['Hour'] = range_df['Timestamp'].dt.hour
+    
+    # Filter for daytime hours (6 AM to 6 PM)
+    range_df = range_df[(range_df['Hour'] >= 6) & (range_df['Hour'] <= 18)]
+    
+    if len(range_df) == 0:
+        return pd.DataFrame()
+    
+    # Group by hour and calculate mean
+    numeric_cols = ['Power_W', 'Irradiance_Wm2', 'Voltage_V', 'Current_A', 'SoC_pct', 'Temperature_C']
+    available_cols = ['Hour'] + [col for col in numeric_cols if col in range_df.columns]
+    
+    hourly_avg = range_df[available_cols].groupby('Hour').mean().reset_index()
+    
+    return hourly_avg
+
+
+def calculate_selected_dates_hourly_averages(
+    df: pd.DataFrame, 
+    selected_dates: list
+) -> pd.DataFrame:
+    """
+    Calculate hourly averages for specific selected dates (non-continuous).
+    Groups all data by hour of day and computes mean values.
+    
+    Args:
+        df: DataFrame with Timestamp and sensor columns
+        selected_dates: List of date objects or strings to include
+    
+    Returns:
+        DataFrame with Hour column and averaged sensor values
+    """
+    if 'Date' not in df.columns or len(selected_dates) == 0:
+        return pd.DataFrame()
+    
+    # Convert dates for comparison
+    selected = [pd.to_datetime(d).date() if isinstance(d, str) else d for d in selected_dates]
+    
+    # Filter data for the selected dates
+    range_df = df[df['Date'].isin(selected)].copy()
+    
+    if len(range_df) == 0:
+        return pd.DataFrame()
+    
+    # Extract hour from timestamp
+    range_df['Hour'] = range_df['Timestamp'].dt.hour
+    
+    # Filter for daytime hours (6 AM to 6 PM)
+    range_df = range_df[(range_df['Hour'] >= 6) & (range_df['Hour'] <= 18)]
+    
+    if len(range_df) == 0:
+        return pd.DataFrame()
+    
+    # Group by hour and calculate mean
+    numeric_cols = ['Power_W', 'Irradiance_Wm2', 'Voltage_V', 'Current_A', 'SoC_pct', 'Temperature_C']
+    available_cols = ['Hour'] + [col for col in numeric_cols if col in range_df.columns]
+    
+    hourly_avg = range_df[available_cols].groupby('Hour').mean().reset_index()
+    
+    return hourly_avg
+
+
+def plot_selected_dates_hourly_power_irradiance(
+    df: pd.DataFrame,
+    selected_dates: list,
+    output_dir: str,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """Create hourly-averaged Power and Irradiance graph for selected dates."""
+    hourly_avg = calculate_selected_dates_hourly_averages(df, selected_dates)
+    
+    if len(hourly_avg) == 0:
+        return None
+    
+    fig, ax1 = plt.subplots(figsize=DEFAULT_FIGSIZE)
+    
+    if 'Power_W' in hourly_avg.columns:
+        ax1.plot(hourly_avg['Hour'], hourly_avg['Power_W'], 
+                color=COLORS['power'], linewidth=2.5, marker='o', markersize=8, label='Avg Power (W)')
+        ax1.set_ylabel('Average Power (W)', color=COLORS['power'], fontsize=12, fontweight='bold')
+        ax1.tick_params(axis='y', labelcolor=COLORS['power'])
+        ax1.fill_between(hourly_avg['Hour'], hourly_avg['Power_W'], alpha=0.2, color=COLORS['power'])
+    
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        ax2 = ax1.twinx()
+        ax2.plot(hourly_avg['Hour'], hourly_avg['Irradiance_Wm2'], 
+                color=COLORS['irradiance'], linewidth=2.5, linestyle='--', marker='s', markersize=6, label='Avg Irradiance (W/m²)')
+        ax2.set_ylabel('Average Irradiance (W/m²)', color=COLORS['irradiance'], fontsize=12, fontweight='bold')
+        ax2.tick_params(axis='y', labelcolor=COLORS['irradiance'])
+    
+    ax1.set_xticks(hourly_avg['Hour'])
+    ax1.set_xticklabels([f'{h}:00' for h in hourly_avg['Hour']], rotation=45, ha='right')
+    ax1.set_xlabel('Hour of Day', fontsize=12, fontweight='bold')
+    ax1.set_title(f'Average Hourly Power & Irradiance\n({len(selected_dates)} selected days)', fontsize=14, fontweight='bold', pad=20)
+    
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+    else:
+        ax1.legend(loc='upper right')
+    
+    ax1.grid(True, alpha=0.3)
+    fig.tight_layout()
+    
+    return fig if show_plot else None
+
+
+def plot_selected_dates_hourly_power_irradiance_soc(
+    df: pd.DataFrame,
+    selected_dates: list,
+    output_dir: str,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """Create hourly-averaged Power, Irradiance, and SoC graph for selected dates."""
+    hourly_avg = calculate_selected_dates_hourly_averages(df, selected_dates)
+    
+    if len(hourly_avg) == 0:
+        return None
+    
+    fig, ax1 = plt.subplots(figsize=DEFAULT_FIGSIZE)
+    
+    line1, line2, line3 = None, None, None
+    if 'Power_W' in hourly_avg.columns:
+        line1, = ax1.plot(hourly_avg['Hour'], hourly_avg['Power_W'], 
+                color=COLORS['power'], linewidth=2.5, marker='o', markersize=8)
+        ax1.set_ylabel('Average Power (W)', color=COLORS['power'], fontsize=12, fontweight='bold')
+        ax1.tick_params(axis='y', labelcolor=COLORS['power'])
+    
+    ax2 = ax1.twinx()
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        line2, = ax2.plot(hourly_avg['Hour'], hourly_avg['Irradiance_Wm2'], 
+                color=COLORS['irradiance'], linewidth=2.5, linestyle='--', marker='s', markersize=6)
+        ax2.set_ylabel('Average Irradiance (W/m²)', color=COLORS['irradiance'], fontsize=12, fontweight='bold')
+        ax2.tick_params(axis='y', labelcolor=COLORS['irradiance'])
+    
+    if 'SoC_pct' in hourly_avg.columns:
+        ax3 = ax1.twinx()
+        ax3.spines['right'].set_position(('axes', 1.12))
+        line3, = ax3.plot(hourly_avg['Hour'], hourly_avg['SoC_pct'], 
+                color=COLORS['soc'], linewidth=2.5, linestyle=':', marker='^', markersize=6)
+        ax3.set_ylabel('Average Battery SoC (%)', color=COLORS['soc'], fontsize=12, fontweight='bold')
+        ax3.tick_params(axis='y', labelcolor=COLORS['soc'])
+        ax3.set_ylim(0, 105)
+    
+    ax1.set_xticks(hourly_avg['Hour'])
+    ax1.set_xticklabels([f'{h}:00' for h in hourly_avg['Hour']], rotation=45, ha='right')
+    ax1.set_xlabel('Hour of Day', fontsize=12, fontweight='bold')
+    ax1.set_title(f'Average Hourly Power, Irradiance & SoC\n({len(selected_dates)} selected days)', fontsize=14, fontweight='bold', pad=20)
+    
+    lines, labels = [], []
+    if line1: lines.append(line1); labels.append('Avg Power (W)')
+    if line2: lines.append(line2); labels.append('Avg Irradiance (W/m²)')
+    if line3: lines.append(line3); labels.append('Avg Battery SoC (%)')
+    ax1.legend(lines, labels, loc='upper left')
+    
+    ax1.grid(True, alpha=0.3)
+    fig.tight_layout()
+    
+    return fig if show_plot else None
+
+
+def plot_selected_dates_hourly_voltage_irradiance(
+    df: pd.DataFrame,
+    selected_dates: list,
+    output_dir: str,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """Create hourly-averaged Voltage and Irradiance graph for selected dates."""
+    hourly_avg = calculate_selected_dates_hourly_averages(df, selected_dates)
+    
+    if len(hourly_avg) == 0 or 'Voltage_V' not in hourly_avg.columns:
+        return None
+    
+    fig, ax1 = plt.subplots(figsize=DEFAULT_FIGSIZE)
+    
+    ax1.plot(hourly_avg['Hour'], hourly_avg['Voltage_V'], 
+            color='#9B59B6', linewidth=2.5, marker='o', markersize=8, label='Avg Voltage (V)')
+    ax1.set_ylabel('Average Voltage (V)', color='#9B59B6', fontsize=12, fontweight='bold')
+    ax1.tick_params(axis='y', labelcolor='#9B59B6')
+    ax1.fill_between(hourly_avg['Hour'], hourly_avg['Voltage_V'], alpha=0.2, color='#9B59B6')
+    
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        ax2 = ax1.twinx()
+        ax2.plot(hourly_avg['Hour'], hourly_avg['Irradiance_Wm2'], 
+                color=COLORS['irradiance'], linewidth=2.5, linestyle='--', marker='s', markersize=6, label='Avg Irradiance (W/m²)')
+        ax2.set_ylabel('Average Irradiance (W/m²)', color=COLORS['irradiance'], fontsize=12, fontweight='bold')
+        ax2.tick_params(axis='y', labelcolor=COLORS['irradiance'])
+    
+    ax1.set_xticks(hourly_avg['Hour'])
+    ax1.set_xticklabels([f'{h}:00' for h in hourly_avg['Hour']], rotation=45, ha='right')
+    ax1.set_xlabel('Hour of Day', fontsize=12, fontweight='bold')
+    ax1.set_title(f'Average Hourly Voltage & Irradiance\n({len(selected_dates)} selected days)', fontsize=14, fontweight='bold', pad=20)
+    
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+    else:
+        ax1.legend(loc='upper right')
+    
+    ax1.grid(True, alpha=0.3)
+    fig.tight_layout()
+    
+    return fig if show_plot else None
+
+
+def plot_selected_dates_hourly_current_irradiance(
+    df: pd.DataFrame,
+    selected_dates: list,
+    output_dir: str,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """Create hourly-averaged Current and Irradiance graph for selected dates."""
+    hourly_avg = calculate_selected_dates_hourly_averages(df, selected_dates)
+    
+    if len(hourly_avg) == 0 or 'Current_A' not in hourly_avg.columns:
+        return None
+    
+    fig, ax1 = plt.subplots(figsize=DEFAULT_FIGSIZE)
+    
+    ax1.plot(hourly_avg['Hour'], hourly_avg['Current_A'], 
+            color='#E74C3C', linewidth=2.5, marker='o', markersize=8, label='Avg Current (A)')
+    ax1.set_ylabel('Average Current (A)', color='#E74C3C', fontsize=12, fontweight='bold')
+    ax1.tick_params(axis='y', labelcolor='#E74C3C')
+    ax1.fill_between(hourly_avg['Hour'], hourly_avg['Current_A'], alpha=0.2, color='#E74C3C')
+    
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        ax2 = ax1.twinx()
+        ax2.plot(hourly_avg['Hour'], hourly_avg['Irradiance_Wm2'], 
+                color=COLORS['irradiance'], linewidth=2.5, linestyle='--', marker='s', markersize=6, label='Avg Irradiance (W/m²)')
+        ax2.set_ylabel('Average Irradiance (W/m²)', color=COLORS['irradiance'], fontsize=12, fontweight='bold')
+        ax2.tick_params(axis='y', labelcolor=COLORS['irradiance'])
+    
+    ax1.set_xticks(hourly_avg['Hour'])
+    ax1.set_xticklabels([f'{h}:00' for h in hourly_avg['Hour']], rotation=45, ha='right')
+    ax1.set_xlabel('Hour of Day', fontsize=12, fontweight='bold')
+    ax1.set_title(f'Average Hourly Current & Irradiance\n({len(selected_dates)} selected days)', fontsize=14, fontweight='bold', pad=20)
+    
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+    else:
+        ax1.legend(loc='upper right')
+    
+    ax1.grid(True, alpha=0.3)
+    fig.tight_layout()
+    
+    return fig if show_plot else None
+
+
+def plot_custom_range_hourly_power_irradiance(
+    df: pd.DataFrame,
+    start_date: str,
+    end_date: str,
+    output_dir: str,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """
+    Create custom date range hourly-averaged Power and Irradiance graph.
+    """
+    hourly_avg = calculate_custom_range_hourly_averages(df, start_date, end_date)
+    
+    if len(hourly_avg) == 0:
+        return None
+    
+    fig, ax1 = plt.subplots(figsize=DEFAULT_FIGSIZE)
+    
+    # Plot Power on primary axis
+    if 'Power_W' in hourly_avg.columns:
+        ax1.plot(hourly_avg['Hour'], hourly_avg['Power_W'], 
+                color=COLORS['power'], linewidth=2.5, marker='o', markersize=8, label='Avg Power (W)')
+        ax1.set_ylabel('Average Power (W)', color=COLORS['power'], fontsize=12, fontweight='bold')
+        ax1.tick_params(axis='y', labelcolor=COLORS['power'])
+        ax1.fill_between(hourly_avg['Hour'], hourly_avg['Power_W'], alpha=0.2, color=COLORS['power'])
+    
+    # Create secondary axis for Irradiance
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        ax2 = ax1.twinx()
+        ax2.plot(hourly_avg['Hour'], hourly_avg['Irradiance_Wm2'], 
+                color=COLORS['irradiance'], linewidth=2.5, linestyle='--', marker='s', markersize=6, label='Avg Irradiance (W/m²)')
+        ax2.set_ylabel('Average Irradiance (W/m²)', color=COLORS['irradiance'], fontsize=12, fontweight='bold')
+        ax2.tick_params(axis='y', labelcolor=COLORS['irradiance'])
+    
+    # Format x-axis
+    ax1.set_xticks(hourly_avg['Hour'])
+    ax1.set_xticklabels([f'{h}:00' for h in hourly_avg['Hour']], rotation=45, ha='right')
+    
+    # Title and labels
+    ax1.set_xlabel('Hour of Day', fontsize=12, fontweight='bold')
+    ax1.set_title(f'Average Hourly Power & Irradiance\n{start_date} to {end_date}', fontsize=14, fontweight='bold', pad=20)
+    
+    # Combined legend
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+    else:
+        ax1.legend(loc='upper right')
+    
+    ax1.grid(True, alpha=0.3)
+    fig.tight_layout()
+    
+    if show_plot:
+        return fig
+    
+    # Save
+    filename = f"{start_date}_to_{end_date}_Hourly_Power_Irradiance.png"
+    filepath = os.path.join(output_dir, 'custom', filename)
+    return save_figure(fig, filepath)
+
+
+def plot_custom_range_hourly_power_irradiance_soc(
+    df: pd.DataFrame,
+    start_date: str,
+    end_date: str,
+    output_dir: str,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """
+    Create custom date range hourly-averaged Power, Irradiance, and Battery SoC graph.
+    """
+    hourly_avg = calculate_custom_range_hourly_averages(df, start_date, end_date)
+    
+    if len(hourly_avg) == 0:
+        return None
+    
+    fig, ax1 = plt.subplots(figsize=DEFAULT_FIGSIZE)
+    
+    # Plot Power on primary axis
+    line1 = None
+    if 'Power_W' in hourly_avg.columns:
+        line1, = ax1.plot(hourly_avg['Hour'], hourly_avg['Power_W'], 
+                color=COLORS['power'], linewidth=2.5, marker='o', markersize=8, label='Avg Power (W)')
+        ax1.set_ylabel('Average Power (W)', color=COLORS['power'], fontsize=12, fontweight='bold')
+        ax1.tick_params(axis='y', labelcolor=COLORS['power'])
+    
+    # Create secondary axis for Irradiance
+    ax2 = ax1.twinx()
+    line2 = None
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        line2, = ax2.plot(hourly_avg['Hour'], hourly_avg['Irradiance_Wm2'], 
+                color=COLORS['irradiance'], linewidth=2.5, linestyle='--', marker='s', markersize=6, label='Avg Irradiance (W/m²)')
+        ax2.set_ylabel('Average Irradiance (W/m²)', color=COLORS['irradiance'], fontsize=12, fontweight='bold')
+        ax2.tick_params(axis='y', labelcolor=COLORS['irradiance'])
+    
+    # Create third axis for SoC
+    line3 = None
+    if 'SoC_pct' in hourly_avg.columns:
+        ax3 = ax1.twinx()
+        ax3.spines['right'].set_position(('axes', 1.12))
+        line3, = ax3.plot(hourly_avg['Hour'], hourly_avg['SoC_pct'], 
+                color=COLORS['soc'], linewidth=2.5, linestyle=':', marker='^', markersize=6, label='Avg Battery SoC (%)')
+        ax3.set_ylabel('Average Battery SoC (%)', color=COLORS['soc'], fontsize=12, fontweight='bold')
+        ax3.tick_params(axis='y', labelcolor=COLORS['soc'])
+        ax3.set_ylim(0, 105)
+    
+    # Format x-axis
+    ax1.set_xticks(hourly_avg['Hour'])
+    ax1.set_xticklabels([f'{h}:00' for h in hourly_avg['Hour']], rotation=45, ha='right')
+    
+    # Title and labels
+    ax1.set_xlabel('Hour of Day', fontsize=12, fontweight='bold')
+    ax1.set_title(f'Average Hourly Power, Irradiance & Battery SoC\n{start_date} to {end_date}', fontsize=14, fontweight='bold', pad=20)
+    
+    # Combined legend
+    lines = []
+    labels = []
+    if line1:
+        lines.append(line1)
+        labels.append('Avg Power (W)')
+    if line2:
+        lines.append(line2)
+        labels.append('Avg Irradiance (W/m²)')
+    if line3:
+        lines.append(line3)
+        labels.append('Avg Battery SoC (%)')
+    
+    ax1.legend(lines, labels, loc='upper left')
+    ax1.grid(True, alpha=0.3)
+    fig.tight_layout()
+    
+    if show_plot:
+        return fig
+    
+    # Save
+    filename = f"{start_date}_to_{end_date}_Hourly_Power_Irradiance_SoC.png"
+    filepath = os.path.join(output_dir, 'custom', filename)
+    return save_figure(fig, filepath)
+
+
+def plot_custom_range_hourly_voltage_irradiance(
+    df: pd.DataFrame,
+    start_date: str,
+    end_date: str,
+    output_dir: str,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """
+    Create custom date range hourly-averaged Voltage and Irradiance graph.
+    """
+    hourly_avg = calculate_custom_range_hourly_averages(df, start_date, end_date)
+    
+    if len(hourly_avg) == 0 or 'Voltage_V' not in hourly_avg.columns:
+        return None
+    
+    fig, ax1 = plt.subplots(figsize=DEFAULT_FIGSIZE)
+    
+    # Plot Voltage on primary axis
+    ax1.plot(hourly_avg['Hour'], hourly_avg['Voltage_V'], 
+            color='#9B59B6', linewidth=2.5, marker='o', markersize=8, label='Avg Voltage (V)')
+    ax1.set_ylabel('Average Voltage (V)', color='#9B59B6', fontsize=12, fontweight='bold')
+    ax1.tick_params(axis='y', labelcolor='#9B59B6')
+    ax1.fill_between(hourly_avg['Hour'], hourly_avg['Voltage_V'], alpha=0.2, color='#9B59B6')
+    
+    # Create secondary axis for Irradiance
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        ax2 = ax1.twinx()
+        ax2.plot(hourly_avg['Hour'], hourly_avg['Irradiance_Wm2'], 
+                color=COLORS['irradiance'], linewidth=2.5, linestyle='--', marker='s', markersize=6, label='Avg Irradiance (W/m²)')
+        ax2.set_ylabel('Average Irradiance (W/m²)', color=COLORS['irradiance'], fontsize=12, fontweight='bold')
+        ax2.tick_params(axis='y', labelcolor=COLORS['irradiance'])
+    
+    # Format x-axis
+    ax1.set_xticks(hourly_avg['Hour'])
+    ax1.set_xticklabels([f'{h}:00' for h in hourly_avg['Hour']], rotation=45, ha='right')
+    
+    # Title and labels
+    ax1.set_xlabel('Hour of Day', fontsize=12, fontweight='bold')
+    ax1.set_title(f'Average Hourly Voltage & Irradiance\n{start_date} to {end_date}', fontsize=14, fontweight='bold', pad=20)
+    
+    # Combined legend
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+    else:
+        ax1.legend(loc='upper right')
+    
+    ax1.grid(True, alpha=0.3)
+    fig.tight_layout()
+    
+    if show_plot:
+        return fig
+    
+    # Save
+    filename = f"{start_date}_to_{end_date}_Hourly_Voltage_Irradiance.png"
+    filepath = os.path.join(output_dir, 'custom', filename)
+    return save_figure(fig, filepath)
+
+
+def plot_custom_range_hourly_current_irradiance(
+    df: pd.DataFrame,
+    start_date: str,
+    end_date: str,
+    output_dir: str,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """
+    Create custom date range hourly-averaged Current and Irradiance graph.
+    """
+    hourly_avg = calculate_custom_range_hourly_averages(df, start_date, end_date)
+    
+    if len(hourly_avg) == 0 or 'Current_A' not in hourly_avg.columns:
+        return None
+    
+    fig, ax1 = plt.subplots(figsize=DEFAULT_FIGSIZE)
+    
+    # Plot Current on primary axis
+    ax1.plot(hourly_avg['Hour'], hourly_avg['Current_A'], 
+            color='#E74C3C', linewidth=2.5, marker='o', markersize=8, label='Avg Current (A)')
+    ax1.set_ylabel('Average Current (A)', color='#E74C3C', fontsize=12, fontweight='bold')
+    ax1.tick_params(axis='y', labelcolor='#E74C3C')
+    ax1.fill_between(hourly_avg['Hour'], hourly_avg['Current_A'], alpha=0.2, color='#E74C3C')
+    
+    # Create secondary axis for Irradiance
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        ax2 = ax1.twinx()
+        ax2.plot(hourly_avg['Hour'], hourly_avg['Irradiance_Wm2'], 
+                color=COLORS['irradiance'], linewidth=2.5, linestyle='--', marker='s', markersize=6, label='Avg Irradiance (W/m²)')
+        ax2.set_ylabel('Average Irradiance (W/m²)', color=COLORS['irradiance'], fontsize=12, fontweight='bold')
+        ax2.tick_params(axis='y', labelcolor=COLORS['irradiance'])
+    
+    # Format x-axis
+    ax1.set_xticks(hourly_avg['Hour'])
+    ax1.set_xticklabels([f'{h}:00' for h in hourly_avg['Hour']], rotation=45, ha='right')
+    
+    # Title and labels
+    ax1.set_xlabel('Hour of Day', fontsize=12, fontweight='bold')
+    ax1.set_title(f'Average Hourly Current & Irradiance\n{start_date} to {end_date}', fontsize=14, fontweight='bold', pad=20)
+    
+    # Combined legend
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    if 'Irradiance_Wm2' in hourly_avg.columns:
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+    else:
+        ax1.legend(loc='upper right')
+    
+    ax1.grid(True, alpha=0.3)
+    fig.tight_layout()
+    
+    if show_plot:
+        return fig
+    
+    # Save
+    filename = f"{start_date}_to_{end_date}_Hourly_Current_Irradiance.png"
+    filepath = os.path.join(output_dir, 'custom', filename)
+    return save_figure(fig, filepath)
+
+
+# ============================================================================
 # MONTHLY/AGGREGATED GRAPHS
 # ============================================================================
 

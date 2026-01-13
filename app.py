@@ -31,6 +31,18 @@ from modules.visualizations import (
     plot_daily_temperature_effect,
     plot_daily_voltage_irradiance,
     plot_daily_current_irradiance,
+    plot_monthly_hourly_power_irradiance,
+    plot_monthly_hourly_power_irradiance_soc,
+    plot_monthly_hourly_voltage_irradiance,
+    plot_monthly_hourly_current_irradiance,
+    plot_custom_range_hourly_power_irradiance,
+    plot_custom_range_hourly_power_irradiance_soc,
+    plot_custom_range_hourly_voltage_irradiance,
+    plot_custom_range_hourly_current_irradiance,
+    plot_selected_dates_hourly_power_irradiance,
+    plot_selected_dates_hourly_power_irradiance_soc,
+    plot_selected_dates_hourly_voltage_irradiance,
+    plot_selected_dates_hourly_current_irradiance,
     plot_pr_trend,
     plot_specific_yield_trend,
     plot_expected_vs_actual,
@@ -360,10 +372,10 @@ def display_analysis_results(vmpp: float, impp: float):
     # Tabs for different visualizations
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "📈 Daily Graphs", 
-        "📊 PR & Yield Analysis", 
+        "📊 Monthly Graphs",
+        "📆 Custom Range",
+        "📈 PR & Yield Analysis", 
         "🌡️ Temperature Effects",
-        "📅 Calendar View",
-        "🔍 Anomaly Analysis",
         "📋 Data Quality",
         "💾 Export All"
     ])
@@ -372,16 +384,16 @@ def display_analysis_results(vmpp: float, impp: float):
         display_daily_graphs(analysis_df, EXPORT_DIR)
     
     with tab2:
-        display_pr_yield_graphs(analysis_df, daily_metrics, monthly_metrics, EXPORT_DIR)
+        display_monthly_graphs(analysis_df, EXPORT_DIR)
     
     with tab3:
-        display_temperature_graphs(analysis_df, EXPORT_DIR)
+        display_custom_range_graphs(analysis_df, EXPORT_DIR)
     
     with tab4:
-        display_calendar_view(daily_metrics)
+        display_pr_yield_graphs(analysis_df, daily_metrics, monthly_metrics, EXPORT_DIR)
     
     with tab5:
-        display_anomaly_analysis(analysis_df, vmpp, impp)
+        display_temperature_graphs(analysis_df, EXPORT_DIR)
     
     with tab6:
         display_data_quality(analysis_df)
@@ -452,6 +464,241 @@ def display_daily_graphs(analysis_df: pd.DataFrame, export_dir: str):
         if 'Current_A' in analysis_df.columns:
             st.markdown("#### Current & Irradiance")
             fig = plot_daily_current_irradiance(analysis_df, str(selected_date), export_dir, show_plot=True)
+            if fig:
+                st.pyplot(fig)
+            else:
+                st.info("Insufficient data for this graph.")
+        else:
+            st.info("Current data not available.")
+
+
+def display_monthly_graphs(analysis_df: pd.DataFrame, export_dir: str):
+    """Display monthly hourly-averaged graphs with month selection."""
+    
+    st.subheader("📊 Monthly Performance Graphs (Hourly Averages)")
+    
+    st.info("These graphs show the **average values at each hour** across all days in the selected month. For example, the value at 10:00 represents the average of all readings taken at 10:00 throughout the month.")
+    
+    if 'Month' not in analysis_df.columns:
+        st.warning("Month information not available in the data.")
+        return
+    
+    # Month selection
+    unique_months = sorted(analysis_df['Month'].astype(str).unique())
+    
+    if len(unique_months) == 0:
+        st.warning("No months found in the data.")
+        return
+    
+    selected_month = st.selectbox(
+        "Select Month",
+        options=unique_months,
+        format_func=lambda x: str(x),
+        key="monthly_graphs_month"
+    )
+    
+    # First row: Power graphs
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### Avg Power & Irradiance")
+        fig = plot_monthly_hourly_power_irradiance(analysis_df, str(selected_month), export_dir, show_plot=True)
+        if fig:
+            st.pyplot(fig)
+        else:
+            st.info("Insufficient data for this graph.")
+    
+    with col2:
+        if 'SoC_pct' in analysis_df.columns:
+            st.markdown("#### Avg Power, Irradiance & SoC")
+            fig = plot_monthly_hourly_power_irradiance_soc(analysis_df, str(selected_month), export_dir, show_plot=True)
+            if fig:
+                st.pyplot(fig)
+            else:
+                st.info("Insufficient data for this graph.")
+        else:
+            st.info("Battery SoC data not available.")
+    
+    # Second row: Voltage and Current graphs
+    st.markdown("---")
+    col3, col4 = st.columns(2)
+    
+    with col3:
+        if 'Voltage_V' in analysis_df.columns:
+            st.markdown("#### Avg Voltage & Irradiance")
+            fig = plot_monthly_hourly_voltage_irradiance(analysis_df, str(selected_month), export_dir, show_plot=True)
+            if fig:
+                st.pyplot(fig)
+            else:
+                st.info("Insufficient data for this graph.")
+        else:
+            st.info("Voltage data not available.")
+    
+    with col4:
+        if 'Current_A' in analysis_df.columns:
+            st.markdown("#### Avg Current & Irradiance")
+            fig = plot_monthly_hourly_current_irradiance(analysis_df, str(selected_month), export_dir, show_plot=True)
+            if fig:
+                st.pyplot(fig)
+            else:
+                st.info("Insufficient data for this graph.")
+        else:
+            st.info("Current data not available.")
+
+
+def display_custom_range_graphs(analysis_df: pd.DataFrame, export_dir: str):
+    """Display custom date range hourly-averaged graphs with date selection."""
+    
+    st.subheader("📆 Custom Range Performance Graphs (Hourly Averages)")
+    
+    if 'Date' not in analysis_df.columns:
+        st.warning("Date information not available in the data.")
+        return
+    
+    unique_dates = sorted(analysis_df['Date'].unique())
+    
+    if len(unique_dates) == 0:
+        st.warning("No dates found in the data.")
+        return
+    
+    min_date = unique_dates[0]
+    max_date = unique_dates[-1]
+    
+    # Selection mode toggle
+    selection_mode = st.radio(
+        "Selection Mode",
+        options=["Date Range", "Specific Dates"],
+        horizontal=True,
+        help="Choose whether to select a continuous date range or pick specific individual dates"
+    )
+    
+    selected_dates = []
+    
+    if selection_mode == "Date Range":
+        st.info("Select a **start and end date** to see hourly averages across all days in that range.")
+        
+        col_start, col_end = st.columns(2)
+        
+        with col_start:
+            start_date = st.date_input(
+                "Start Date",
+                value=min_date,
+                min_value=min_date,
+                max_value=max_date,
+                key="custom_range_start"
+            )
+        
+        with col_end:
+            end_date = st.date_input(
+                "End Date",
+                value=max_date,
+                min_value=min_date,
+                max_value=max_date,
+                key="custom_range_end"
+            )
+        
+        if start_date > end_date:
+            st.error("Start date must be before or equal to end date.")
+            return
+        
+        days_in_range = (end_date - start_date).days + 1
+        st.caption(f"📅 Selected range: **{days_in_range} days** ({start_date} to {end_date})")
+        
+        # For date range, we use the existing range functions
+        use_range_mode = True
+        
+    else:  # Specific Dates
+        st.info("Select **specific dates** (hold Ctrl/Cmd to select multiple) to see hourly averages across just those days.")
+        
+        # Format dates nicely for display
+        date_options = [str(d) for d in unique_dates]
+        
+        selected_date_strs = st.multiselect(
+            "Select Dates",
+            options=date_options,
+            default=date_options[:min(5, len(date_options))],  # Default to first 5 dates
+            help="Pick any combination of dates - they don't need to be consecutive"
+        )
+        
+        if len(selected_date_strs) == 0:
+            st.warning("Please select at least one date.")
+            return
+        
+        selected_dates = selected_date_strs
+        st.caption(f"📅 Selected: **{len(selected_dates)} days**")
+        use_range_mode = False
+    
+    st.markdown("---")
+    
+    # First row: Power graphs
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### Avg Power & Irradiance")
+        if use_range_mode:
+            fig = plot_custom_range_hourly_power_irradiance(
+                analysis_df, str(start_date), str(end_date), export_dir, show_plot=True
+            )
+        else:
+            fig = plot_selected_dates_hourly_power_irradiance(
+                analysis_df, selected_dates, export_dir, show_plot=True
+            )
+        if fig:
+            st.pyplot(fig)
+        else:
+            st.info("Insufficient data for this graph.")
+    
+    with col2:
+        if 'SoC_pct' in analysis_df.columns:
+            st.markdown("#### Avg Power, Irradiance & SoC")
+            if use_range_mode:
+                fig = plot_custom_range_hourly_power_irradiance_soc(
+                    analysis_df, str(start_date), str(end_date), export_dir, show_plot=True
+                )
+            else:
+                fig = plot_selected_dates_hourly_power_irradiance_soc(
+                    analysis_df, selected_dates, export_dir, show_plot=True
+                )
+            if fig:
+                st.pyplot(fig)
+            else:
+                st.info("Insufficient data for this graph.")
+        else:
+            st.info("Battery SoC data not available.")
+    
+    # Second row: Voltage and Current graphs
+    st.markdown("---")
+    col3, col4 = st.columns(2)
+    
+    with col3:
+        if 'Voltage_V' in analysis_df.columns:
+            st.markdown("#### Avg Voltage & Irradiance")
+            if use_range_mode:
+                fig = plot_custom_range_hourly_voltage_irradiance(
+                    analysis_df, str(start_date), str(end_date), export_dir, show_plot=True
+                )
+            else:
+                fig = plot_selected_dates_hourly_voltage_irradiance(
+                    analysis_df, selected_dates, export_dir, show_plot=True
+                )
+            if fig:
+                st.pyplot(fig)
+            else:
+                st.info("Insufficient data for this graph.")
+        else:
+            st.info("Voltage data not available.")
+    
+    with col4:
+        if 'Current_A' in analysis_df.columns:
+            st.markdown("#### Avg Current & Irradiance")
+            if use_range_mode:
+                fig = plot_custom_range_hourly_current_irradiance(
+                    analysis_df, str(start_date), str(end_date), export_dir, show_plot=True
+                )
+            else:
+                fig = plot_selected_dates_hourly_current_irradiance(
+                    analysis_df, selected_dates, export_dir, show_plot=True
+                )
             if fig:
                 st.pyplot(fig)
             else:
