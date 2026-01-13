@@ -370,9 +370,10 @@ def display_analysis_results(vmpp: float, impp: float):
     st.markdown("---")
     
     # Tabs for different visualizations
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "📈 Daily Graphs", 
         "📊 Monthly Graphs",
+        "📅 Calendar View",
         "📆 Custom Range",
         "📈 PR & Yield Analysis", 
         "🌡️ Temperature Effects",
@@ -387,18 +388,21 @@ def display_analysis_results(vmpp: float, impp: float):
         display_monthly_graphs(analysis_df, EXPORT_DIR)
     
     with tab3:
-        display_custom_range_graphs(analysis_df, EXPORT_DIR)
+        display_calendar_view(daily_metrics)
     
     with tab4:
-        display_pr_yield_graphs(analysis_df, daily_metrics, monthly_metrics, EXPORT_DIR)
+        display_custom_range_graphs(analysis_df, EXPORT_DIR)
     
     with tab5:
-        display_temperature_graphs(analysis_df, EXPORT_DIR)
+        display_pr_yield_graphs(analysis_df, daily_metrics, monthly_metrics, EXPORT_DIR)
     
     with tab6:
-        display_data_quality(analysis_df)
+        display_temperature_graphs(analysis_df, EXPORT_DIR)
     
     with tab7:
+        display_data_quality(analysis_df)
+    
+    with tab8:
         display_export_section(analysis_df, daily_metrics, monthly_metrics, EXPORT_DIR)
 
 
