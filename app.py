@@ -63,12 +63,22 @@ from modules.export import (
     get_export_summary,
     export_dataframe_to_csv
 )
+from modules.visualizations import (
+    generate_all_daily_graphs,
+    generate_all_monthly_graphs,
+    generate_custom_export_graphs
+)
 from modules.data_quality import (
     check_data_completeness,
     validate_data_ranges,
     fill_data_gaps,
     detect_duplicates,
     get_data_quality_report
+)
+from modules.weather_api import (
+    extract_coordinates_from_url,
+    fetch_weather_data,
+    merge_weather_with_solar
 )
 
 # Page configuration
@@ -190,27 +200,10 @@ def main():
             help="Exclude data points where SoC is above this threshold from PR calculation"
         )
         
-        st.markdown("---")
-        st.subheader("⚡ MPP Settings")
-        st.caption("For anomaly detection")
-        
-        vmpp = st.number_input(
-            "Vmpp (V)",
-            min_value=1.0,
-            max_value=100.0,
-            value=30.0,
-            step=0.5,
-            help="Maximum Power Point Voltage - used for voltage anomaly detection (outside 80-110%)"
-        )
-        
-        impp = st.number_input(
-            "Impp (A)",
-            min_value=0.1,
-            max_value=50.0,
-            value=8.0,
-            step=0.1,
-            help="Maximum Power Point Current - used for current anomaly detection (>110%)"
-        )
+    
+        # Default constants for anomaly detection (UI removed)
+        vmpp = 30.0
+        impp = 8.0
         
         st.markdown("---")
         st.subheader("📁 Upload Data")
@@ -230,6 +223,75 @@ def main():
         )
         
         process_btn = st.button("🚀 Process Data", type="primary", use_container_width=True)
+
+        st.markdown("---")
+        st.subheader("🌤️ Weather Data (Optional)")
+        
+        # Location input - either lat/long or URL
+        location_mode = st.radio("Location Input", ["Lat/Long", "Google Maps URL"], horizontal=True, label_visibility="collapsed")
+        
+        lat_val, lon_val = 0.0, 0.0
+        
+        if location_mode == "Google Maps URL":
+            map_url = st.text_input("Google Maps URL", help="Paste a Google Maps link to extract coordinates")
+            if st.button("📍 Parse URL"):
+                p_lat, p_lon = extract_coordinates_from_url(map_url)
+                if p_lat is not None:
+                    lat_val, lon_val = p_lat, p_lon
+                    st.success(f"Found: {lat_val:.4f}, {lon_val:.4f}")
+                    st.session_state['matched_coords'] = (lat_val, lon_val)
+                else:
+                    st.error("Could not extract coordinates from URL")
+            
+            # Use stored coords if available
+            if 'matched_coords' in st.session_state:
+                lat_val, lon_val = st.session_state['matched_coords']
+        
+        col_lat, col_lon = st.columns(2)
+        with col_lat:
+            latitude = st.number_input("Latitude", value=lat_val, format="%.4f", min_value=-90.0, max_value=90.0)
+        with col_lon:
+            longitude = st.number_input("Longitude", value=lon_val, format="%.4f", min_value=-180.0, max_value=180.0)
+            
+        fetch_weather = st.button("☁️ Fetch Weather Data", use_container_width=True)
+        
+        if fetch_weather:
+             if not st.session_state.data_loaded:
+                 st.warning("Please process solar data first!")
+             else:
+                 with st.spinner("Fetching weather data..."):
+                     # Get date range from loaded data
+                     df = st.session_state.analysis_df
+                     if 'Timestamp' in df.columns:
+                         start_date = df['Timestamp'].min()
+                         end_date = df['Timestamp'].max()
+                         
+                         weather_df = fetch_weather_data(latitude, longitude, start_date, end_date)
+                         
+                         if weather_df is not None:
+                             # Merge
+                             merged_df, msgs = merge_weather_with_solar(df, weather_df)
+                             
+                             # Re-run calculations with new data
+                             if 'Current_A' in merged_df.columns and 'Voltage_V' in merged_df.columns:
+                                 merged_df = calculate_power(merged_df)
+                             
+                             # Recalculate metrics
+                             daily_metrics = calculate_daily_metrics(merged_df, nominal_power, temp_coeff_decimal)
+                             monthly_metrics = calculate_monthly_metrics(merged_df, nominal_power, temp_coeff_decimal)
+                             
+                             # Update session state
+                             st.session_state.analysis_df = merged_df
+                             st.session_state.daily_metrics = daily_metrics
+                             st.session_state.monthly_metrics = monthly_metrics
+                             
+                             st.success("✅ Weather data merged successfully!")
+                             st.rerun()
+                         else:
+                             st.error("Failed to fetch weather data")
+                     else:
+                         st.error("Could not determine date range from data")
+
     
     # Main content area
     if process_btn:
@@ -875,121 +937,191 @@ def display_calendar_view(daily_metrics):
 def display_export_section(analysis_df, daily_metrics, monthly_metrics, export_dir):
     """Display export options and generate all graphs."""
     
-    st.subheader("💾 Export All Graphs")
+    st.subheader("💾 Export Options")
     
-    st.markdown("""
-    Generate and download all graphs as high-resolution PNG images.
+    tab_graphs, tab_data = st.tabs(["📊 Graph Export", "📝 Data Export"])
     
-    **Graph Resolution:** 1400×700 pixels (150 DPI)  
-    **Filename Format:** `YYYY-MM-DD_Graph_Type.png`
-    """)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("🗑️ Clean Export Directory", use_container_width=True):
-            clean_export_directory(export_dir)
-            st.success("Export directory cleaned!")
-    
-    with col2:
-        if st.button("📥 Generate All Graphs", type="primary", use_container_width=True):
-            with st.spinner("Generating all graphs..."):
-                # Clean first
-                clean_export_directory(export_dir)
+    with tab_graphs:
+        st.markdown("### Export Graphs")
+        st.markdown("Generate and download charts as high-resolution PNG images.")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Date Range Filter
+            if 'Date' in daily_metrics.columns:
+                min_date = daily_metrics['Date'].min()
+                max_date = daily_metrics['Date'].max()
                 
-                # Generate daily graphs
-                daily_files = generate_all_daily_graphs(analysis_df, export_dir)
-                
-                # Generate monthly graphs
-                monthly_files = generate_all_monthly_graphs(
-                    analysis_df, 
-                    daily_metrics, 
-                    monthly_metrics, 
-                    export_dir
+                date_range = st.date_input(
+                    "📅 Select Date Range",
+                    value=(min_date, max_date),
+                    min_value=min_date,
+                    max_value=max_date,
+                    help="Filter charts to this date range"
                 )
-                
-                all_files = daily_files + monthly_files
-                
-                st.success(f"✅ Generated {len(all_files)} graphs!")
-                
-                # List files
-                files = list_exported_files(export_dir)
-                st.markdown(get_export_summary(files))
-                
-                # Create ZIP
-                if len(all_files) > 0:
-                    zip_path = create_zip_archive(all_files, export_dir)
-                    
-                    with open(zip_path, 'rb') as f:
-                        st.download_button(
-                            label="📦 Download All as ZIP",
-                            data=f,
-                            file_name=os.path.basename(zip_path),
-                            mime="application/zip",
-                            use_container_width=True
+            else:
+                date_range = None
+                st.warning("No date information available")
+        
+        with col2:
+            # Graph Type Selection
+            graph_types = [
+                'Daily: Power & Irradiance',
+                'Daily: Power, Irradiance & SoC',
+                'Daily: Voltage & Irradiance',
+                'Daily: Current & Irradiance',
+                'Daily: Temperature Effect',
+                'PR Trend',
+                'Specific Yield Trend',
+                'Expected vs Actual',
+                'Monthly Summary',
+                'Overall Temperature Effect'
+            ]
+            
+            selected_graphs = st.multiselect(
+                "📈 Select Graphs to Generate",
+                options=graph_types,
+                default=graph_types,
+                help="Choose which types of charts to include in the export"
+            )
+            
+        st.markdown("---")
+        
+        c1, c2 = st.columns(2)
+        
+        with c1:
+            if st.button("🗑️ Clean Export Directory", use_container_width=True):
+                clean_export_directory(export_dir)
+                st.success("Export directory cleaned!")
+        
+        with c2:
+            if st.button("📥 Generate Selected Graphs", type="primary", use_container_width=True):
+                if not date_range or len(date_range) != 2:
+                    st.error("Please select a valid date range (Start - End)")
+                elif not selected_graphs:
+                    st.error("Please select at least one graph type")
+                else:
+                    with st.spinner("Generating graphs..."):
+                        # Clean first
+                        clean_export_directory(export_dir)
+                        
+                        # Generate filtered graphs
+                        saved_files = generate_custom_export_graphs(
+                            analysis_df,
+                            daily_metrics,
+                            monthly_metrics,
+                            export_dir,
+                            date_range,
+                            selected_graphs
                         )
+                        
+                        st.success(f"✅ Generated {len(saved_files)} graphs!")
+                        
+                        # List files
+                        files = list_exported_files(export_dir)
+                        st.markdown(get_export_summary(files))
+                        
+                        # Create ZIP
+                        if len(saved_files) > 0:
+                            zip_path = create_zip_archive(saved_files, export_dir)
+                            
+                            with open(zip_path, 'rb') as f:
+                                st.download_button(
+                                    label="📦 Download Graphs as ZIP",
+                                    data=f,
+                                    file_name=os.path.basename(zip_path),
+                                    mime="application/zip",
+                                    use_container_width=True
+                                )
     
-    # Show existing exports
+    with tab_data:
+        st.markdown("### Export Data (CSV)")
+        st.markdown("Select columns to include in your data export.")
+        
+        col_selector, col_download = st.columns([2, 1])
+        
+        with col_selector:
+            # Column selector for Main Data
+            all_columns = sorted(analysis_df.columns.tolist())
+            selected_columns = st.multiselect(
+                "Select Columns to Export",
+                options=all_columns,
+                default=all_columns,
+                help="Choose columns to include in the CSV file"
+            )
+            
+        with col_download:
+            st.markdown("<br>", unsafe_allow_html=True) # Spacing
+            if selected_columns:
+                export_df = analysis_df[selected_columns]
+                csv_data = export_df.to_csv(index=False)
+                st.download_button(
+                    label="📥 Download Custom CSV",
+                    data=csv_data,
+                    file_name="solar_data_custom.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+            else:
+                st.warning("Select at least one column")
+        
+        st.markdown("---")
+        st.markdown("#### Quick Downloads")
+        
+        q1, q2, q3 = st.columns(3)
+        
+        with q1:
+            csv_full = analysis_df.to_csv(index=False)
+            st.download_button(
+                label="📥 Full Dataset (CSV)",
+                data=csv_full,
+                file_name="solar_data_full.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+        
+        with q2:
+            csv_daily = daily_metrics.to_csv(index=False)
+            st.download_button(
+                label="📥 Daily Metrics (CSV)",
+                data=csv_daily,
+                file_name="daily_metrics.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+        
+        with q3:
+            if len(monthly_metrics) > 0:
+                csv_monthly = monthly_metrics.to_csv(index=False)
+                st.download_button(
+                    label="📥 Monthly Metrics (CSV)",
+                    data=csv_monthly,
+                    file_name="monthly_metrics.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+    
+    # Show existing exports (for graphs only)
     st.markdown("---")
-    st.subheader("📂 Exported Files")
+    st.subheader("📂 Exported Files (Graphs)")
     
     files = list_exported_files(export_dir)
     
     if len(files['daily']) + len(files['monthly']) == 0:
-        st.info("No exported files yet. Click 'Generate All Graphs' to create them.")
+        st.info("No exported files yet. Generate graphs above.")
     else:
-        tab1, tab2 = st.tabs(["Daily Graphs", "Monthly Graphs"])
-        
-        with tab1:
+        # Simplified list view
+        with st.expander("View File List", expanded=False):
             if files['daily']:
+                st.markdown("**Daily Graphs:**")
                 for f in files['daily']:
                     st.text(os.path.basename(f))
-            else:
-                st.info("No daily graphs exported yet.")
-        
-        with tab2:
+            
             if files['monthly']:
+                st.markdown("**Monthly Graphs:**")
                 for f in files['monthly']:
                     st.text(os.path.basename(f))
-            else:
-                st.info("No monthly graphs exported yet.")
-    
-    # Export data as CSV
-    st.markdown("---")
-    st.subheader("📊 Export Data")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        csv_data = analysis_df.to_csv(index=False)
-        st.download_button(
-            label="📥 Download Processed Data (CSV)",
-            data=csv_data,
-            file_name="solar_data_processed.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
-    
-    with col2:
-        csv_daily = daily_metrics.to_csv(index=False)
-        st.download_button(
-            label="📥 Download Daily Metrics (CSV)",
-            data=csv_daily,
-            file_name="daily_metrics.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
-    
-    with col3:
-        if len(monthly_metrics) > 0:
-            csv_monthly = monthly_metrics.to_csv(index=False)
-            st.download_button(
-                label="📥 Download Monthly Metrics (CSV)",
-                data=csv_monthly,
-                file_name="monthly_metrics.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
 
 
 def display_anomaly_analysis(analysis_df: pd.DataFrame, vmpp: float, impp: float):

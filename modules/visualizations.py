@@ -1638,6 +1638,102 @@ def generate_all_monthly_graphs(
     return saved_files
 
 
+def generate_custom_export_graphs(
+    df: pd.DataFrame,
+    daily_metrics: pd.DataFrame,
+    monthly_metrics: pd.DataFrame,
+    output_dir: str,
+    date_range: Tuple[datetime.date, datetime.date],
+    selected_graphs: List[str]
+) -> List[str]:
+    """
+    Generate specific graphs based on filters.
+    
+    Args:
+        df: Main analysis dataframe
+        daily_metrics: Daily metrics dataframe
+        monthly_metrics: Monthly metrics dataframe
+        output_dir: Directory to save files
+        date_range: (start_date, end_date) tuple
+        selected_graphs: List of graph types to generate
+        
+    Returns:
+        List of generated file paths
+    """
+    saved_files = []
+    
+    # Filter dataframes based on date range
+    start_date, end_date = date_range
+    
+    # Filter main df
+    if 'Date' in df.columns:
+        # Convert date column to date objects for comparison
+        dates = pd.to_datetime(df['Date']).dt.date
+        df_filtered = df[(dates >= start_date) & (dates <= end_date)].copy()
+    else:
+        df_filtered = df.copy()
+        
+    # Filter daily metrics
+    if 'Date' in daily_metrics.columns:
+        d_dates = pd.to_datetime(daily_metrics['Date']).dt.date
+        daily_metrics_filtered = daily_metrics[(d_dates >= start_date) & (d_dates <= end_date)].copy()
+    else:
+        daily_metrics_filtered = daily_metrics.copy()
+        
+    # Filter monthly metrics (if month falls within range)
+    monthly_metrics_filtered = monthly_metrics.copy()
+
+    # Generate Daily Graphs
+    if len(df_filtered) > 0:
+        unique_dates = df_filtered['Date'].unique()
+        
+        for date in unique_dates:
+            date_str = str(date)
+            
+            if 'Daily: Power & Irradiance' in selected_graphs:
+                fp = plot_daily_power_irradiance(df_filtered, date_str, output_dir)
+                if fp: saved_files.append(fp)
+                
+            if 'Daily: Power, Irradiance & SoC' in selected_graphs and 'SoC_pct' in df_filtered.columns:
+                fp = plot_daily_power_irradiance_soc(df_filtered, date_str, output_dir)
+                if fp: saved_files.append(fp)
+                
+            if 'Daily: Voltage & Irradiance' in selected_graphs and 'Voltage_V' in df_filtered.columns:
+                fp = plot_daily_voltage_irradiance(df_filtered, date_str, output_dir)
+                if fp: saved_files.append(fp)
+                
+            if 'Daily: Current & Irradiance' in selected_graphs and 'Current_A' in df_filtered.columns:
+                fp = plot_daily_current_irradiance(df_filtered, date_str, output_dir)
+                if fp: saved_files.append(fp)
+                
+            if 'Daily: Temperature Effect' in selected_graphs and 'Temperature_C' in df_filtered.columns:
+                fp = plot_daily_temperature_effect(df_filtered, date_str, output_dir)
+                if fp: saved_files.append(fp)
+
+    # Generate Trends / Monthly Graphs (using filtered metrics)
+    if 'PR Trend' in selected_graphs:
+        fp = plot_pr_trend(daily_metrics_filtered, output_dir)
+        if fp: saved_files.append(fp)
+        
+    if 'Specific Yield Trend' in selected_graphs:
+        fp = plot_specific_yield_trend(daily_metrics_filtered, output_dir)
+        if fp: saved_files.append(fp)
+        
+    if 'Expected vs Actual' in selected_graphs:
+        fp = plot_expected_vs_actual(daily_metrics_filtered, output_dir)
+        if fp: saved_files.append(fp)
+        
+    if 'Monthly Summary' in selected_graphs and len(monthly_metrics_filtered) > 0:
+        fp = plot_monthly_summary(monthly_metrics_filtered, output_dir)
+        if fp: saved_files.append(fp)
+        
+    if 'Overall Temperature Effect' in selected_graphs:
+        fp = plot_temperature_effect_scatter(df_filtered, output_dir)
+        if fp: saved_files.append(fp)
+        
+    return saved_files
+
+
 # ============================================================================
 # CALENDAR VIEW & ANOMALY DETECTION
 # ============================================================================
