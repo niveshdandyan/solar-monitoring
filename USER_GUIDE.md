@@ -13,13 +13,18 @@
 4. [Uploading Your Data](#4-uploading-your-data)
 5. [Understanding the Dashboard](#5-understanding-the-dashboard)
 6. [Daily Performance Analysis](#6-daily-performance-analysis)
-7. [Performance Ratio & Yield Analysis](#7-performance-ratio--yield-analysis)
-8. [Temperature Effect Analysis](#8-temperature-effect-analysis)
-9. [Exporting Data & Reports](#9-exporting-data--reports)
-10. [Understanding Key Metrics](#10-understanding-key-metrics)
-11. [Data Format Requirements](#11-data-format-requirements)
-12. [Troubleshooting](#12-troubleshooting)
-13. [Glossary](#13-glossary)
+7. [Monthly Performance Analysis](#7-monthly-performance-analysis)
+8. [Calendar View](#8-calendar-view)
+9. [Custom Range Analysis](#9-custom-range-analysis)
+10. [Performance Ratio & Yield Analysis](#10-performance-ratio--yield-analysis)
+11. [Temperature Effect Analysis](#11-temperature-effect-analysis)
+12. [Data Quality Analysis](#12-data-quality-analysis)
+13. [Exporting Data & Reports](#13-exporting-data--reports)
+14. [Integrating Weather Data](#integrating-weather-data)
+15. [Understanding Key Metrics](#15-understanding-key-metrics)
+16. [Data Format Requirements](#16-data-format-requirements)
+17. [Troubleshooting](#17-troubleshooting)
+18. [Glossary](#18-glossary)
 
 ---
 
@@ -160,6 +165,20 @@ The system will display detection results:
 | 🔄 Detected mV, converting to V | Automatic unit conversion applied |
 | 📊 Data frequency: ~X minutes | Data interval detected |
 
+## 14. Integrating Weather Data
+
+If your uploaded data lacks **Irradiance** or **Temperature** readings, or if you want to compare against satellite data, you can fetch historical weather data from Open-Meteo.
+
+1.  **Locate "Weather Data"** in the sidebar (below the Process button).
+2.  **Enter Location**:
+    *   **Option A: Google Maps URL**: Paste a URL (e.g., from your browser address bar) and click **"📍 Parse URL"**.
+    *   **Option B: Lat/Lon**: Manually enter Latitude and Longitude.
+3.  Click **"☁️ Fetch Weather Data"**.
+4.  The system will:
+    *   Retrieve hourly historical data for your data's date range.
+    *   Resample it to match your data frequency (e.g., 10-min intervals).
+    *   Merge it into your analysis (filling gaps or adding new columns).
+
 ---
 
 # 5. Understanding the Dashboard
@@ -249,7 +268,55 @@ This three-way chart adds battery state-of-charge to the analysis.
 
 ---
 
-# 7. Performance Ratio & Yield Analysis
+---
+# 7. Monthly Performance Analysis
+
+Navigate to the **📊 Monthly Graphs** tab to view hourly averaged performance for an entire month.
+
+## 7.1 Understanding Hourly Averages
+These graphs show the **average behavior** of your system at each hour of the day across all days in the selected month.
+*   **Example**: The data point at 12:00 PM represents the average of all 12:00 PM readings in that month.
+*   **Use Case**: Identifies consistent shading issues (e.g., a tree casting a shadow every day at 3 PM) or orientation problems.
+
+## 7.2 Available Monthly Graphs
+*   **Avg Power & Irradiance**: Typical daily profile for the month.
+*   **Avg Voltage & Irradiance**: See how voltage drifts with seasonal temperature changes.
+*   **Avg Current & Irradiance**: Analyze current generation patterns.
+
+---
+
+# 8. Calendar View
+
+Navigate to the **📅 Calendar View** tab for a bird's-eye view of your system's performance.
+
+## 8.1 Performance Heatmaps
+Visualize metrics across a calendar grid to spot trends or outages.
+*   **Select Metric**: Choose between **Energy** (kWh), **Performance Ratio** (%), or **Anomaly Status**.
+*   **Color Coding**:
+    *   **Energy**: Darker green = Higher energy.
+    *   **PR**: Green (Good), Yellow (Fair), Red (Poor).
+    *   **Anomaly**: Green (Normal), Red (Critical Issue).
+
+## 8.2 Anomaly Detection
+The system automatically scans each day for issues:
+*   **Critical Days (Red)**: Very low PR (<60%) or Zero Energy.
+*   **Warning Days (Yellow)**: Low PR (60-70%) or unexpected drops.
+*   **Normal Days (Green)**: System performing within expected parameters.
+
+---
+
+# 9. Custom Range Analysis
+
+Navigate to the **📆 Custom Range** tab to analyze specific periods (e.g., a specific week of bad weather).
+
+## 9.1 Analyzing Non-Standard Periods
+Select any **Start Date** and **End Date** to generate averaged graphs for that specific window.
+*   **Flexible Analysis**: Compare a rainy week vs. a sunny week.
+*   **aggregated Metrics**: See total energy and average PR for just that period.
+
+---
+
+# 10. Performance Ratio & Yield Analysis
 
 Navigate to the **📊 PR & Yield Analysis** tab for long-term performance trends.
 
@@ -313,7 +380,9 @@ Four-panel summary showing:
 
 ---
 
-# 8. Temperature Effect Analysis
+---
+
+# 11. Temperature Effect Analysis
 
 Navigate to the **🌡️ Temperature Effects** tab to understand how heat impacts your panels.
 
@@ -342,58 +411,64 @@ Select a specific date to see temperature effects for that day only. This helps 
 
 ---
 
-# 9. Exporting Data & Reports
+---
 
-Navigate to the **💾 Export All** tab to generate and download reports.
+# 12. Data Quality Analysis
 
-## 9.1 Generating All Graphs
+Navigate to the **📋 Data Quality** tab to audit the health of your dataset.
 
-Click **"📥 Generate All Graphs"** to create high-resolution images of all visualizations:
+## 12.1 Data Completeness
+Checks if you are missing data points.
+*   **Expected Points**: Based on your data frequency (e.g., 144 points/day for 10-min data).
+*   **Actual Points**: How many readings were actually recorded.
+*   **Completeness %**: (Actual / Expected) × 100. Lower values indicate logger downtime.
 
-| Action | Result |
-|--------|--------|
-| Clean Export Directory | Removes previously generated files |
-| Generate All Graphs | Creates PNG images for all days and analysis types |
-
-### Generated Files:
-
-**Daily Graphs (one set per day):**
-- `YYYY-MM-DD_Power_Irradiance.png`
-- `YYYY-MM-DD_Power_Irradiance_SoC.png`
-- `YYYY-MM-DD_Temperature_Effect.png`
-
-**Monthly/Aggregate Graphs:**
-- `DateRange_PR_Trend.png`
-- `DateRange_Specific_Yield.png`
-- `DateRange_Expected_vs_Actual.png`
-- `Monthly_Summary.png`
-- `Temperature_Effect_Overall.png`
-
-### Image Specifications:
-
-| Property | Value |
-|----------|-------|
-| **Resolution** | 1400 × 700 pixels |
-| **DPI** | 150 (high resolution) |
-| **Format** | PNG (lossless) |
-| **Naming** | Standardized date-based format |
-
-## 9.2 Downloading Files
-
-After generation, use the download buttons:
-
-| Button | Contents |
-|--------|----------|
-| **📦 Download All as ZIP** | All generated graphs in one archive |
-| **📥 Download Processed Data (CSV)** | Full dataset with calculated fields |
-| **📥 Download Daily Metrics (CSV)** | Day-by-day performance summary |
-| **📥 Download Monthly Metrics (CSV)** | Month-by-month performance summary |
+## 12.2 Value Range Checks
+Verifies if readings are within physical limits:
+*   **Voltage**: Should not exceed system Vmax (e.g., 600V).
+*   **Irradiance**: Should not exceed solar constant markedly (>1300 W/m²).
+*   **Temperature**: Should be within realistic bounds (-20°C to 80°C).
 
 ---
 
-# 10. Understanding Key Metrics
+# 13. Exporting Data & Reports
 
-## 10.1 Performance Ratio (PR)
+Navigate to the **💾 Export Options** section to generate customized reports and data. The interface is divided into two tabs: **📊 Graph Export** and **📝 Data Export**.
+
+## 9.1 Graph Export
+
+Generate high-resolution images of your charts with advanced filtering.
+
+### 1. Select Filters
+*   **Date Range**: Choose specific Start and End dates to limit the analysis.
+*   **Graph Types**: Use the multiselect dropdown to choose exactly which graphs to generate (e.g., only "Daily: Power & Irradiance").
+
+### 2. Generate
+Click **"📥 Generate Selected Graphs"**. The system will create the requested images in the filtered date range.
+
+### 3. Download
+*   **View List**: Expand the "Exported Files" section to see what was created.
+*   **Download ZIP**: Click **"📦 Download Graphs as ZIP"** to get all generated files in one package.
+
+## 9.2 Data Export
+
+Create custom CSV files of your processed data.
+
+### 1. Custom CSV
+*   **Select Columns**: Choose specific columns you need (e.g., `Timestamp`, `Power_W`, `Irradiance_Wm2`).
+*   **Download**: Click **"📥 Download Custom CSV"**.
+
+### 2. Quick Downloads
+Pre-configured full datasets are available at the bottom:
+*   **Full Dataset**: Complete processed data with all columns.
+*   **Daily Metrics**: Daily summaries (Energy, PR, etc.).
+*   **Monthly Metrics**: Monthly aggregated statistics.
+
+---
+
+# 15. Understanding Key Metrics
+
+## 15.1 Performance Ratio (PR)
 
 **Definition:** The ratio of actual energy output to the theoretical maximum output based on irradiance and temperature.
 
@@ -443,9 +518,9 @@ Temperature Factor = 1 + (Temp Coefficient × (Cell Temp - 25°C))
 
 ---
 
-# 11. Data Format Requirements
+# 16. Data Format Requirements
 
-## 11.1 Supported File Format
+## 16.1 Supported File Format
 
 The system accepts **CSV (Comma-Separated Values)** files or directly pasted text data.
 
@@ -495,9 +570,9 @@ No configuration is required – the system adapts automatically.
 
 ---
 
-# 12. Troubleshooting
+# 17. Troubleshooting
 
-## 12.1 Common Issues
+## 17.1 Common Issues
 
 ### "Please upload a file or paste data to process"
 
@@ -540,7 +615,7 @@ No configuration is required – the system adapts automatically.
 
 ---
 
-# 13. Glossary
+# 18. Glossary
 
 | Term | Definition |
 |------|------------|
