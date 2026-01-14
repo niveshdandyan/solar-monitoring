@@ -297,6 +297,9 @@
                     <li><a href="#getting-started">Getting Started</a></li>
                     <li><a href="#configuration">System Configuration</a></li>
                     <li><a href="#uploading">Uploading Your Data</a></li>
+                    <li><a href="#data-format">Data Format Requirements</a></li>
+                    <li><a href="#metrics">Understanding Key Metrics</a></li>
+                    <li><a href="#weather">Integrating Weather Data</a></li>
                     <li><a href="#dashboard">Understanding the Dashboard</a></li>
                     <li><a href="#daily-analysis">Daily Performance Analysis</a></li>
                     <li><a href="#monthly-analysis">Monthly Performance Analysis</a></li>
@@ -306,9 +309,6 @@
                     <li><a href="#temperature">Temperature Effect Analysis</a></li>
                     <li><a href="#data-quality">Data Quality Analysis</a></li>
                     <li><a href="#exporting">Exporting Data & Reports</a></li>
-                    <li><a href="#weather">Integrating Weather Data</a></li>
-                    <li><a href="#metrics">Understanding Key Metrics</a></li>
-                    <li><a href="#data-format">Data Format Requirements</a></li>
                     <li><a href="#troubleshooting">Troubleshooting</a></li>
                     <li><a href="#glossary">Glossary</a></li>
                 </ol>
@@ -359,8 +359,6 @@
                         </tr>
                     </tbody>
                 </table>
-
-
             </section>
 
             <!-- Section 2: Getting Started -->
@@ -535,351 +533,145 @@
                         </tr>
                     </tbody>
                 </table>
-                </table>
-
-                <!-- Section 14: Integrating Weather -->
-                <section id="weather">
-                    <h2 id="weather">14. Integrating Weather Data</h2>
-                    <p>If your uploaded data lacks <strong>Irradiance</strong> or <strong>Temperature</strong> readings,
-                        or
-                        if you want to compare against satellite data, you can fetch historical weather data from
-                        Open-Meteo.
-                    </p>
-
-                    <ol>
-                        <li><strong>Locate "Weather Data"</strong> in the sidebar (below the Process button).</li>
-                        <li><strong>Enter Location</strong>:
-                            <ul>
-                                <li><strong>Option A: Google Maps URL</strong>: Paste a URL and click <strong>"📍 Parse
-                                        URL"</strong>.</li>
-                                <li><strong>Option B: Lat/Lon</strong>: Manually enter Latitude and Longitude.</li>
-                            </ul>
-                        </li>
-                        <li>Click <strong>"☁️ Fetch Weather Data"</strong>.</li>
-                        <li>The system will retrieve hourly historical data, resample it to your frequency, and merge it
-                            (filling
-                            gaps or adding new columns).</li>
-                    </ol>
-                </section>
-
-                <!-- Section 5: Dashboard -->
-                <section id="dashboard">
-                    <h2>5. Understanding the Dashboard</h2>
-
-                    <p>Once your data is processed, the dashboard displays key performance metrics.</p>
-
-                    <figure class="screenshot">
-                        <img src="docs/images/data_preview.png" alt="Performance Overview">
-                        <figcaption>Figure 3: Performance Overview with Data Preview showing calculated power values
-                        </figcaption>
-                    </figure>
-
-                    <h3>5.1 Performance Overview Cards</h3>
-                    <p>The top section displays five key performance indicators:</p>
-
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Metric</th>
-                                <th>Description</th>
-                                <th>Good Values</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><strong>Total Energy</strong></td>
-                                <td>Total electricity generated (kWh)</td>
-                                <td>Higher is better</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Average PR</strong></td>
-                                <td>Average Performance Ratio across all days</td>
-                                <td>75-85% typical</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Specific Yield</strong></td>
-                                <td>Energy per installed capacity (kWh/kWp)</td>
-                                <td>3-6 kWh/kWp/day</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Days Analyzed</strong></td>
-                                <td>Number of days in your dataset</td>
-                                <td>Based on your data</td>
-                            </tr>
-                            <tr>
-                                <td><strong>High SoC Points</strong></td>
-                                <td>Data points where battery was ≥95% full</td>
-                                <td>Excluded from PR</td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <h3>5.2 Data Preview Section</h3>
-                    <p>Expand the <strong>"Data Preview"</strong> section to see your raw data with calculated fields
-                        including Power_W (Current × Voltage).</p>
-                </section>
-
-                <!-- Section 6: Daily Analysis -->
-                <section id="daily-analysis">
-                    <h2>6. Daily Performance Analysis</h2>
-
-                    <p>Navigate to the <strong>📈 Daily Graphs</strong> tab to view detailed daily performance charts.
-                    </p>
-
-                    <figure class="screenshot">
-                        <img src="docs/images/daily_graphs.png" alt="Daily Graphs">
-                        <figcaption>Figure 4: Daily Performance Graphs - Power & Irradiance with Battery SoC tracking
-                        </figcaption>
-                    </figure>
-
-                    <h3>6.1 Selecting a Date</h3>
-                    <p>Use the <strong>"Select Date"</strong> dropdown to choose which day's data to visualize. Each day
-                        has
-                        its own separate graphs.</p>
-
-                    <h3>6.2 Power & Irradiance Graph (Left)</h3>
-                    <p>This chart shows the relationship between solar radiation and your system's power output
-                        throughout
-                        the day.</p>
-
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Line Color</th>
-                                <th>Metric</th>
-                                <th>Description</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><strong>Blue (filled area)</strong></td>
-                                <td>Power (W)</td>
-                                <td>Your system's actual power output</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Orange (dashed)</strong></td>
-                                <td>Irradiance (W/m²)</td>
-                                <td>Solar radiation hitting the panels</td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <h3>6.3 Power, Irradiance & SoC Graph (Right)</h3>
-                    <p>This three-way chart adds battery state-of-charge to the analysis, showing when power curtailment
-                        may
-                        occur.</p>
-
-                    <div class="alert alert-note">
-                        <strong>📝 Note</strong>
-                        When SoC reaches 95%+ (shown in green), the system may be curtailing power output. This data is
-                        excluded from Performance Ratio calculations.
-                    </div>
-                </section>
-
-                <!-- Section 7: Monthly Analysis -->
-                <section id="monthly-analysis">
-                    <h2>7. Monthly Performance Analysis</h2>
-                    <p>Navigate to the <strong>📊 Monthly Graphs</strong> tab to view hourly averaged performance for an
-                        entire month.</p>
-
-                    <h3>7.1 Understanding Hourly Averages</h3>
-                    <p>These graphs show the <strong>average behavior</strong> of your system at each hour of the day
-                        across all days in the selected month.</p>
-                    <ul>
-                        <li><strong>Example</strong>: The data point at 12:00 PM represents the average of all 12:00 PM
-                            readings in that month.</li>
-                        <li><strong>Use Case</strong>: Identifies consistent shading issues or orientation problems.
-                        </li>
-                    </ul>
-                </section>
-
-                <!-- Section 8: Calendar View -->
-                <section id="calendar-view">
-                    <h2>8. Calendar View</h2>
-                    <p>Navigate to the <strong>📅 Calendar View</strong> tab for a bird's-eye view of your system's
-                        performance.</p>
-
-                    <h3>8.1 Performance Heatmaps</h3>
-                    <p>Visualize metrics across a calendar grid. Choose between <strong>Energy</strong>,
-                        <strong>PR</strong>, or <strong>Anomaly Status</strong>.
-                    </p>
-
-                    <h3>8.2 Anomaly Detection</h3>
-                    <p>The system flags days with issues: <strong>Red</strong> (Critical), <strong>Yellow</strong>
-                        (Warning), or <strong>Green</strong> (Normal).</p>
-                </section>
-
-                <!-- Section 9: Custom Range -->
-                <section id="custom-range">
-                    <h2>9. Custom Range Analysis</h2>
-                    <p>Navigate to the <strong>📆 Custom Range</strong> tab to analyze specific periods (e.g., a
-                        specific week).</p>
-                    <p>Select any <strong>Start Date</strong> and <strong>End Date</strong> to generate averaged graphs
-                        and aggregated metrics for that specific window.</p>
-                </section>
-
-                <!-- Section 10: PR & Yield Analysis -->
-                <section id="pr-analysis">
-                    <h2>10. Performance Ratio & Yield Analysis</h2>
-
-                    <p>Navigate to the <strong>📊 PR & Yield Analysis</strong> tab for long-term performance trends.</p>
-
-                    <figure class="screenshot">
-                        <img src="docs/images/pr_analysis.png" alt="PR Analysis">
-                        <figcaption>Figure 5: PR & Yield Analysis - Trend charts, Expected vs Actual, and Monthly
-                            Summary
-                        </figcaption>
-                    </figure>
-
-                    <h3>7.1 Performance Ratio Trend (Top Left)</h3>
-                    <p>This chart shows how your system's efficiency changes over time.</p>
-
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>PR Range</th>
-                                <th>Performance Level</th>
-                                <th>Recommended Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><strong>80%+</strong></td>
-                                <td>Excellent</td>
-                                <td>System performing optimally</td>
-                            </tr>
-                            <tr>
-                                <td><strong>70-80%</strong></td>
-                                <td>Good</td>
-                                <td>Normal operation</td>
-                            </tr>
-                            <tr>
-                                <td><strong>60-70%</strong></td>
-                                <td>Fair</td>
-                                <td>Investigate potential issues</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Below 60%</strong></td>
-                                <td>Poor</td>
-                                <td>Immediate inspection recommended</td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <h3>7.2 Specific Yield Over Time (Top Right)</h3>
-                    <p>Shows energy production per unit of installed capacity with cumulative tracking.</p>
-
-                    <h3>7.3 Expected vs. Actual Yield (Bottom Left)</h3>
-                    <p>Compares theoretical maximum output against actual production to identify underperformance.</p>
-
-                    <h3>7.4 Monthly Summary (Bottom Right)</h3>
-                    <p>Four-panel summary showing monthly trends for energy, PR, yield, and conditions.</p>
-                </section>
-
-                <!-- Section 11: Temperature Effects -->
-                <section id="temperature">
-                    <h2>11. Temperature Effect Analysis</h2>
-
-                    <p>Navigate to the <strong>🌡️ Temperature Effects</strong> tab to understand how heat impacts your
-                        panels.</p>
-
-                    <figure class="screenshot">
-                        <img src="docs/images/temperature_effects.png" alt="Temperature Effects">
-                        <figcaption>Figure 6: Temperature Effect Analysis - Scatter plots showing power vs. temperature
-                            correlation</figcaption>
-                    </figure>
-
-                    <h3>8.1 Overall Temperature Effect (Left)</h3>
-                    <p>This scatter plot shows power output vs. cell temperature for your entire dataset.</p>
-                    <ul>
-                        <li>Each <strong>dot</strong> represents one data reading</li>
-                        <li><strong>Color gradient</strong> indicates irradiance (yellow/red = higher)</li>
-                        <li><strong>Trend line</strong> shows the temperature effect coefficient</li>
-                    </ul>
-
-                    <h3>8.2 Daily Temperature Effect (Right)</h3>
-                    <p>Select a specific date to analyze temperature effects for that day only.</p>
-                </section>
-
-                <!-- Section 12: Data Quality -->
-                <section id="data-quality">
-                    <h2>12. Data Quality Analysis</h2>
-                    <p>Navigate to the <strong>📋 Data Quality</strong> tab to audit the health of your dataset.</p>
-
-                    <h3>12.1 Data Completeness</h3>
-                    <p>Checks if you are missing data points based on your expected recording frequency.</p>
-
-                    <h3>12.2 Value Range Checks</h3>
-                    <p>Verifies if readings (Voltage, Irradiance, Temp) are within realistic physical limits.</p>
-                </section>
-
-                <!-- Section 13: Exporting -->
-                <section id="exporting">
-                    <h2>13. Exporting Data & Reports</h2>
-
-                    <p>Navigate to the <strong>💾 Export Options</strong> section to generate customized reports and
-                        data.
-                        The
-                        interface is divided into two tabs: <strong>📊 Graph Export</strong> and <strong>📝 Data
-                            Export</strong>.
-                    </p>
-
-                    <h3>9.1 Graph Export</h3>
-                    <p>Generate high-resolution images of your charts with advanced filtering.</p>
-
-                    <h4>1. Select Filters</h4>
-                    <ul>
-                        <li><strong>Date Range</strong>: Choose specific Start and End dates to limit the analysis.</li>
-                        <li><strong>Graph Types</strong>: Use the multiselect dropdown to choose exactly which graphs to
-                            generate.</li>
-                    </ul>
-
-                    <h4>2. Generate</h4>
-                    <p>Click <strong>"📥 Generate Selected Graphs"</strong>. The system will create the requested images
-                        in
-                        the
-                        filtered date range.</p>
-
-                    <h4>3. Download</h4>
-                    <ul>
-                        <li><strong>View List</strong>: Expand the "Exported Files" section to see what was created.
-                        </li>
-                        <li><strong>Download ZIP</strong>: Click <strong>"📦 Download Graphs as ZIP"</strong> to get all
-                            generated files in one package.</li>
-                    </ul>
-
-                    <h3>9.2 Data Export</h3>
-                    <p>Create custom CSV files of your processed data.</p>
-
-                    <h4>1. Custom CSV</h4>
-                    <ul>
-                        <li><strong>Select Columns</strong>: Choose specific columns you need (e.g.,
-                            <code>Timestamp</code>,
-                            <code>Power_W</code>).
-                        </li>
-                        <li><strong>Download</strong>: Click <strong>"📥 Download Custom CSV"</strong>.</li>
-                    </ul>
-
-                    <h4>2. Quick Downloads</h4>
-                    <p>Pre-configured full datasets are available at the bottom:</p>
-                    <ul>
-                        <li><strong>Full Dataset</strong>: Complete processed data with all columns.</li>
-                        <li><strong>Daily Metrics</strong>: Daily summaries (Energy, PR, etc.).</li>
-                        <li><strong>Monthly Metrics</strong>: Monthly aggregated statistics.</li>
-                    </ul>
-                </section>
-                <li><strong>📦 Download All as ZIP</strong> – All generated graphs in one archive</li>
-                <li><strong>📥 Download Processed Data (CSV)</strong> – Full dataset with calculated fields</li>
-                <li><strong>📥 Download Daily Metrics (CSV)</strong> – Day-by-day performance summary</li>
-                <li><strong>📥 Download Monthly Metrics (CSV)</strong> – Month-by-month summary</li>
-                </ul>
             </section>
 
-            <!-- Section 15: Metrics -->
-            <section id="metrics">
-                <h2>15. Understanding Key Metrics</h2>
+            <!-- Section 5: Data Format -->
+            <section id="data-format">
+                <h2>5. Data Format Requirements</h2>
 
-                <h3>15.1 Performance Ratio (PR)</h3>
+                <p>The system is designed with a <strong>smart data parser</strong> that offers significant flexibility.
+                    You do not need to follow a rigid template, as long as your data contains the necessary information
+                    with descriptive headers.</p>
+
+                <h3>5.1 Supported File Formats</h3>
+                <ul>
+                    <li><strong>File Types</strong>: <code>.csv</code> (Comma Separated Values) or <code>.txt</code>
+                        (Plain Text).</li>
+                    <li><strong>Delimiter</strong>: Comma (<code>,</code>) is the standard delimiter.</li>
+                    <li><strong>Structure</strong>: The <strong>first row must be the header row</strong> containing
+                        column names.</li>
+                </ul>
+
+                <h3>5.2 Column Flexibility</h3>
+                <div class="alert alert-tip">
+                    <strong>💡 Smart Detection</strong>
+                    The system looks for <strong>keywords</strong> in your column headers, not specific positions. This
+                    means:
+                    <ul>
+                        <li><strong>Order doesn't matter:</strong> <code>Voltage, Current, Date</code> works just as
+                            well
+                            as <code>Date, Voltage, Current</code>.</li>
+                        <li><strong>Case doesn't matter:</strong> <code>voltage</code>, <code>Voltage</code>, and
+                            <code>VOLTAGE</code> are all accepted.
+                        </li>
+                        <li><strong>Extra columns are ignored:</strong> You can leave other columns (like "Inverter ID"
+                            or "Status") in your file; they won't cause errors.</li>
+                    </ul>
+                </div>
+
+                <h3>5.3 Naming Conventions</h3>
+                <p>The system recognizes columns using "smart matching" patterns. If your header contains any of the
+                    following terms, it will be detected correctly:</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data Point</th>
+                            <th>Status</th>
+                            <th>Accepted Header Keywords</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Timestamp</strong></td>
+                            <td>Required</td>
+                            <td><code>timestamp</code>, <code>time</code>, <code>date</code>, <code>datetime</code>,
+                                <code>dt</code>
+                            </td>
+                            <td><strong>Format:</strong> ISO 8601 (<code>YYYY-MM-DD HH:MM:SS</code>) is recommended. The
+                                system also attempts to parse <code>DD/MM/YYYY</code> and <code>MM/DD/YYYY</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Current (DC)</strong></td>
+                            <td>Required</td>
+                            <td><code>current</code>, <code>amps</code>, <code>amp</code>, <code>i</code>, <code>dc
+                                    current</code></td>
+                            <td>Unit: Amperes (A).</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Voltage (DC)</strong></td>
+                            <td>Required</td>
+                            <td><code>voltage</code>, <code>volts</code>, <code>volt</code>, <code>v</code>, <code>dc
+                                    voltage</code></td>
+                            <td>Unit: Volts (V). The system <strong>automatically converts mV to V</strong> if values
+                                are > 500.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Irradiance</strong></td>
+                            <td>Required</td>
+                            <td><code>irradiance</code>, <code>ghi</code>, <code>solar_radiation</code>,
+                                <code>w/m2</code>, <code>insolation</code>
+                            </td>
+                            <td>Unit: Watts per square meter (W/m²).</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Temperature</strong></td>
+                            <td>Recommended</td>
+                            <td><code>temperature</code>, <code>temp</code>, <code>cell temp</code>, <code>(C)</code>
+                            </td>
+                            <td>Unit: Celsius (°C). Used for Expected Power calculations.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Battery SoC</strong></td>
+                            <td>Optional</td>
+                            <td><code>soc</code>, <code>battery</code>, <code>charge</code>,
+                                <code>state of charge</code>
+                            </td>
+                            <td>Unit: Percentage (0-100%).</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>5.4 Data Frequency</h3>
+                <p>The system is agnostic to the time interval between your data points.</p>
+                <ul>
+                    <li><strong>Interval Flexibility:</strong> Data can be in 1-minute, 5-minute, 15-minute, or 1-hour
+                        intervals.</li>
+                    <li><strong>Auto-Detection:</strong> The system automatically calculates and displays your data
+                        frequency (e.g., "Data frequency: ~5 minutes").</li>
+                    <li><strong>Consistency:</strong> Detailed analysis works best with consistent intervals, but slight
+                        variations are handled gracefully.</li>
+                </ul>
+
+                <div class="alert alert-note">
+                    <strong>📊 Frequency Recommendations</strong>
+                    <ul>
+                        <li><strong>15-60 Minutes:</strong> Ideal for long-term Performance Ratio (PR) and yield
+                            analysis. Fast to process.</li>
+                        <li><strong>1-5 Minutes:</strong> Better for detailed troubleshooting and detecting rapid cloud
+                            cover changes.</li>
+                        <li><strong>Seconds:</strong> Accepted, but large datasets (multi-year second-by-second) may be
+                            slower to process.</li>
+                    </ul>
+                </div>
+
+                <h3>5.5 Example Import Data</h3>
+                <p>You can copy the block below and save it as a <code>.csv</code> file to test the system immediately:
+                </p>
+
+                <pre><code>Timestamp,Voltage_V,Current_A,Irradiance_W_m2,Temperature_C,SoC_%
+2024-03-15 08:00:00,32.5,2.1,150,25.4,85
+2024-03-15 08:15:00,32.8,2.8,200,26.1,86
+2024-03-15 08:30:00,33.1,3.5,350,28.2,88
+2024-03-15 08:45:00,32.9,4.2,500,31.5,90</code></pre>
+            </section>
+
+            <!-- Section 6: Metrics -->
+            <section id="metrics">
+                <h2>6. Understanding Key Metrics</h2>
+
+                <h3>6.1 Performance Ratio (PR)</h3>
                 <p><strong>Definition:</strong> The ratio of actual energy output to the theoretical maximum output.</p>
                 <pre><code>PR = (Actual Energy / Expected Energy) × 100%</code></pre>
 
@@ -889,76 +681,379 @@
                     curtailed generation from artificially lowering your PR score.
                 </div>
 
-                <h3>15.2 Specific Yield</h3>
+                <h3>6.2 Specific Yield</h3>
                 <p><strong>Definition:</strong> Energy generated per unit of installed capacity.</p>
                 <pre><code>Specific Yield = Energy (kWh) / Installed Capacity (kWp)</code></pre>
 
-                <h3>15.3 Expected Power</h3>
+                <h3>6.3 Expected Power</h3>
                 <p><strong>Definition:</strong> Theoretical power output based on current conditions.</p>
                 <pre><code>Expected Power = Rated Power × (Irradiance / 1000) × Temperature Factor
 
 Temperature Factor = 1 + (Temp Coefficient × (Cell Temp - 25°C))</code></pre>
             </section>
 
-            <!-- Section 16: Data Format -->
-            <section id="data-format">
-                <h2>16. Data Format Requirements</h2>
+            <!-- Section 7: Integrating Weather -->
+            <section id="weather">
+                <h2 id="weather">7. Integrating Weather Data</h2>
+                <p>If your uploaded data lacks <strong>Irradiance</strong> or <strong>Temperature</strong> readings,
+                    or
+                    if you want to compare against satellite data, you can fetch historical weather data from
+                    Open-Meteo.
+                </p>
 
-                <h3>16.1 Required and Optional Columns</h3>
+                <ol>
+                    <li><strong>Locate "Weather Data"</strong> in the sidebar (below the Process button).</li>
+                    <li><strong>Enter Location</strong>:
+                        <ul>
+                            <li><strong>Option A: Google Maps URL</strong>: Paste a URL and click <strong>"📍 Parse
+                                    URL"</strong>.</li>
+                            <li><strong>Option B: Lat/Lon</strong>: Manually enter Latitude and Longitude.</li>
+                        </ul>
+                    </li>
+                    <li>Click <strong>"☁️ Fetch Weather Data"</strong>.</li>
+                    <li>The system will retrieve hourly historical data, resample it to your frequency, and merge it
+                        (filling
+                        gaps or adding new columns).</li>
+                </ol>
+            </section>
+
+            <!-- Section 8: Dashboard -->
+            <section id="dashboard">
+                <h2>8. Understanding the Dashboard</h2>
+
+                <p>Once your data is processed, the dashboard displays key performance metrics.</p>
+
+                <figure class="screenshot">
+                    <img src="docs/images/data_preview.png" alt="Performance Overview">
+                    <figcaption>Figure 3: Performance Overview with Data Preview showing calculated power values
+                    </figcaption>
+                </figure>
+
+                <h3>8.1 Performance Overview Cards</h3>
+                <p>The top section displays five key performance indicators:</p>
+
                 <table>
                     <thead>
                         <tr>
-                            <th>Column</th>
-                            <th>Status</th>
+                            <th>Metric</th>
                             <th>Description</th>
-                            <th>Example</th>
+                            <th>Good Values</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td><strong>Timestamp</strong></td>
-                            <td>Required</td>
-                            <td>Date and time</td>
-                            <td><code>2024-03-01 10:30</code></td>
+                            <td><strong>Total Energy</strong></td>
+                            <td>Total electricity generated (kWh)</td>
+                            <td>Higher is better</td>
                         </tr>
                         <tr>
-                            <td><strong>Current</strong></td>
-                            <td>Required</td>
-                            <td>DC current (A)</td>
-                            <td><code>5.2</code></td>
+                            <td><strong>Average PR</strong></td>
+                            <td>Average Performance Ratio across all days</td>
+                            <td>75-85% typical</td>
                         </tr>
                         <tr>
-                            <td><strong>Voltage</strong></td>
-                            <td>Required</td>
-                            <td>DC voltage (V)</td>
-                            <td><code>32.5</code></td>
+                            <td><strong>Specific Yield</strong></td>
+                            <td>Energy per installed capacity (kWh/kWp)</td>
+                            <td>3-6 kWh/kWp/day</td>
                         </tr>
                         <tr>
-                            <td><strong>Irradiance</strong></td>
-                            <td>Required</td>
-                            <td>Solar radiation (W/m²)</td>
-                            <td><code>850</code></td>
+                            <td><strong>Days Analyzed</strong></td>
+                            <td>Number of days in your dataset</td>
+                            <td>Based on your data</td>
                         </tr>
                         <tr>
-                            <td><strong>Temperature</strong></td>
-                            <td>Optional</td>
-                            <td>Cell temp (°C)</td>
-                            <td><code>35</code></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Battery SoC</strong></td>
-                            <td>Optional</td>
-                            <td>Charge level (%)</td>
-                            <td><code>85</code></td>
+                            <td><strong>High SoC Points</strong></td>
+                            <td>Data points where battery was ≥95% full</td>
+                            <td>Excluded from PR</td>
                         </tr>
                     </tbody>
                 </table>
 
-                <h3>16.2 Sample Data Format</h3>
-                <pre><code>Timestamp,DC Current (A),DC Voltage (V),Irradiance (W/m2),Cell Temperature (C),Battery SoC (%)
-2024-03-01 06:00,0.5,28.5,50,22,45
-2024-03-01 06:30,1.2,29.1,120,23,46
-2024-03-01 07:00,2.5,30.2,250,24,48</code></pre>
+                <h3>8.2 Data Preview Section</h3>
+                <p>Expand the <strong>"Data Preview"</strong> section to see your raw data with calculated fields
+                    including Power_W (Current × Voltage).</p>
+            </section>
+
+            <!-- Section 9: Daily Analysis -->
+            <section id="daily-analysis">
+                <h2>9. Daily Performance Analysis</h2>
+
+                <p>Navigate to the <strong>📈 Daily Graphs</strong> tab to view detailed daily performance charts.
+                </p>
+
+                <figure class="screenshot">
+                    <img src="docs/images/daily_graphs.png" alt="Daily Graphs">
+                    <figcaption>Figure 4: Daily Performance Graphs - Power & Irradiance with Battery SoC tracking
+                    </figcaption>
+                </figure>
+
+                <h3>9.1 Selecting a Date</h3>
+                <p>Use the <strong>"Select Date"</strong> dropdown to choose which day's data to visualize. Each day
+                    has
+                    its own separate graphs.</p>
+
+                <h3>9.2 Power & Irradiance Graph (Left)</h3>
+                <p>This chart shows the relationship between solar radiation and your system's power output
+                    throughout
+                    the day.</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Line Color</th>
+                            <th>Metric</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Blue (filled area)</strong></td>
+                            <td>Power (W)</td>
+                            <td>Your system's actual power output</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Orange (dashed)</strong></td>
+                            <td>Irradiance (W/m²)</td>
+                            <td>Solar radiation hitting the panels</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>9.3 Power, Irradiance & SoC Graph (Right)</h3>
+                <p>This three-way chart adds battery state-of-charge to the analysis, showing when power curtailment
+                    may
+                    occur.</p>
+
+                <div class="alert alert-note">
+                    <strong>📝 Note</strong>
+                    When SoC reaches 95%+ (shown in green), the system may be curtailing power output. This data is
+                    excluded from Performance Ratio calculations.
+                </div>
+            </section>
+
+            <!-- Section 10: Monthly Analysis -->
+            <section id="monthly-analysis">
+                <h2>10. Monthly Performance Analysis</h2>
+                <p>Navigate to the <strong>📊 Monthly Graphs</strong> tab to view hourly averaged performance for an
+                    entire month.</p>
+
+                <figure class="screenshot">
+                    <img src="docs/images/monthly_analysis.png" alt="Monthly Analysis">
+                    <figcaption>Figure 5: Monthly Analysis - Hourly averaged performance metrics</figcaption>
+                </figure>
+
+                <h3>10.1 Understanding Hourly Averages</h3>
+                <p>These graphs show the <strong>average behavior</strong> of your system at each hour of the day
+                    across all days in the selected month.</p>
+                <ul>
+                    <li><strong>Example</strong>: The data point at 12:00 PM represents the average of all 12:00 PM
+                        readings in that month.</li>
+                    <li><strong>Use Case</strong>: Identifies consistent shading issues or orientation problems.
+                    </li>
+                </ul>
+            </section>
+
+            <!-- Section 11: Calendar View -->
+            <section id="calendar-view">
+                <h2>11. Calendar View</h2>
+                <p>Navigate to the <strong>📅 Calendar View</strong> tab for a bird's-eye view of your system's
+                    performance.</p>
+
+                <figure class="screenshot">
+                    <img src="docs/images/calendar_view.png" alt="Calendar View">
+                    <figcaption>Figure 6: Calendar View - Heatmap visualization of daily performance</figcaption>
+                </figure>
+
+                <h3>11.1 Performance Heatmaps</h3>
+                <p>Visualize metrics across a calendar grid. Choose between <strong>Energy</strong>,
+                    <strong>PR</strong>, or <strong>Anomaly Status</strong>.
+                </p>
+
+                <figure class="screenshot">
+                    <img src="docs/images/calendar_heatmap.png" alt="Calendar Heatmap">
+                    <figcaption>Figure 6b: Monthly Performance Heatmap - Daily visualization of energy production
+                    </figcaption>
+                </figure>
+
+                <h3>11.2 Anomaly Detection</h3>
+                <p>The system flags days with issues: <strong>Red</strong> (Critical), <strong>Yellow</strong>
+                    (Warning), or <strong>Green</strong> (Normal).</p>
+            </section>
+
+            <!-- Section 12: Custom Range -->
+            <section id="custom-range">
+                <h2>12. Custom Range Analysis</h2>
+                <p>Navigate to the <strong>📆 Custom Range</strong> tab to analyze specific periods (e.g., a
+                    specific week).</p>
+
+                <figure class="screenshot">
+                    <img src="docs/images/custom_range.png" alt="Custom Range Analysis">
+                    <figcaption>Figure 7: Custom Range Analysis - Selection and analysis of specific date ranges
+                    </figcaption>
+                </figure>
+                <p>Select any <strong>Start Date</strong> and <strong>End Date</strong> to generate averaged graphs
+                    and aggregated metrics for that specific window.</p>
+            </section>
+
+            <!-- Section 13: PR & Yield Analysis -->
+            <section id="pr-analysis">
+                <h2>13. Performance Ratio & Yield Analysis</h2>
+
+                <p>Navigate to the <strong>📊 PR & Yield Analysis</strong> tab for long-term performance trends.</p>
+
+                <figure class="screenshot">
+                    <img src="docs/images/pr_analysis.png" alt="PR Analysis">
+                    <figcaption>Figure 5: PR & Yield Analysis - Trend charts, Expected vs Actual, and Monthly
+                        Summary
+                    </figcaption>
+                </figure>
+
+                <h3>13.1 Performance Ratio Trend (Top Left)</h3>
+                <p>This chart shows how your system's efficiency changes over time.</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>PR Range</th>
+                            <th>Performance Level</th>
+                            <th>Recommended Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>80%+</strong></td>
+                            <td>Excellent</td>
+                            <td>System performing optimally</td>
+                        </tr>
+                        <tr>
+                            <td><strong>70-80%</strong></td>
+                            <td>Good</td>
+                            <td>Normal operation</td>
+                        </tr>
+                        <tr>
+                            <td><strong>60-70%</strong></td>
+                            <td>Fair</td>
+                            <td>Investigate potential issues</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Below 60%</strong></td>
+                            <td>Poor</td>
+                            <td>Immediate inspection recommended</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>13.2 Specific Yield Over Time (Top Right)</h3>
+                <p>Shows energy production per unit of installed capacity with cumulative tracking.</p>
+
+                <h3>13.3 Expected vs. Actual Yield (Bottom Left)</h3>
+                <p>Compares theoretical maximum output against actual production to identify underperformance.</p>
+
+                <h3>13.4 Monthly Summary (Bottom Right)</h3>
+                <p>Four-panel summary showing monthly trends for energy, PR, yield, and conditions.</p>
+            </section>
+
+            <!-- Section 14: Temperature Effects -->
+            <section id="temperature">
+                <h2>14. Temperature Effect Analysis</h2>
+
+                <p>Navigate to the <strong>🌡️ Temperature Effects</strong> tab to understand how heat impacts your
+                    panels.</p>
+
+                <figure class="screenshot">
+                    <img src="docs/images/temperature_effects.png" alt="Temperature Effects">
+                    <figcaption>Figure 6: Temperature Effect Analysis - Scatter plots showing power vs. temperature
+                        correlation</figcaption>
+                </figure>
+
+                <h3>14.1 Overall Temperature Effect (Left)</h3>
+                <p>This scatter plot shows power output vs. cell temperature for your entire dataset.</p>
+                <ul>
+                    <li>Each <strong>dot</strong> represents one data reading</li>
+                    <li><strong>Color gradient</strong> indicates irradiance (yellow/red = higher)</li>
+                    <li><strong>Trend line</strong> shows the temperature effect coefficient</li>
+                </ul>
+
+                <h3>14.2 Daily Temperature Effect (Right)</h3>
+                <p>Select a specific date to analyze temperature effects for that day only.</p>
+            </section>
+
+            <!-- Section 15: Data Quality -->
+            <section id="data-quality">
+                <h2>15. Data Quality Analysis</h2>
+                <p>Navigate to the <strong>📋 Data Quality</strong> tab to audit the health of your dataset.</p>
+
+                <figure class="screenshot">
+                    <img src="docs/images/data_quality.png" alt="Data Quality Analysis">
+                    <figcaption>Figure 8: Data Quality - Completeness and sanity checks for your data</figcaption>
+                </figure>
+
+                <h3>15.1 Data Completeness</h3>
+                <p>Checks if you are missing data points based on your expected recording frequency.</p>
+
+                <h3>15.2 Value Range Checks</h3>
+                <p>Verifies if readings (Voltage, Irradiance, Temp) are within realistic physical limits.</p>
+            </section>
+
+            <!-- Section 16: Exporting -->
+            <section id="exporting">
+                <h2>16. Exporting Data & Reports</h2>
+
+                <p>Navigate to the <strong>💾 Export Options</strong> section to generate customized reports and
+                    data.
+                    The
+                    interface is divided into two tabs: <strong>📊 Graph Export</strong> and <strong>📝 Data
+                        Export</strong>.
+                </p>
+
+                <figure class="screenshot">
+                    <img src="docs/images/export_options.png" alt="Export Options">
+                    <figcaption>Figure 9: Export Options - Generate graph images and download data CSVs</figcaption>
+                </figure>
+
+                <h3>16.1 Graph Export</h3>
+                <p>Generate high-resolution images of your charts with advanced filtering.</p>
+
+                <h4>1. Select Filters</h4>
+                <ul>
+                    <li><strong>Date Range</strong>: Choose specific Start and End dates to limit the analysis.</li>
+                    <li><strong>Graph Types</strong>: Use the multiselect dropdown to choose exactly which graphs to
+                        generate.</li>
+                </ul>
+
+                <h4>2. Generate</h4>
+                <p>Click <strong>"📥 Generate Selected Graphs"</strong>. The system will create the requested images
+                    in
+                    the
+                    filtered date range.</p>
+
+                <h4>3. Download</h4>
+                <ul>
+                    <li><strong>View List</strong>: Expand the "Exported Files" section to see what was created.
+                    </li>
+                    <li><strong>Download ZIP</strong>: Click <strong>"📦 Download Graphs as ZIP"</strong> to get all
+                        generated files in one package.</li>
+                </ul>
+
+                <h3>16.2 Data Export</h3>
+                <p>Create custom CSV files of your processed data.</p>
+
+                <h4>1. Custom CSV</h4>
+                <ul>
+                    <li><strong>Select Columns</strong>: Choose specific columns you need (e.g.,
+                        <code>Timestamp</code>,
+                        <code>Power_W</code>).
+                    </li>
+                    <li><strong>Download</strong>: Click <strong>"📥 Download Custom CSV"</strong>.</li>
+                </ul>
+
+                <h4>2. Quick Downloads</h4>
+                <p>Pre-configured full datasets are available at the bottom:</p>
+                <ul>
+                    <li><strong>Full Dataset</strong>: Complete processed data with all columns.</li>
+                    <li><strong>Daily Metrics</strong>: Daily summaries (Energy, PR, etc.).</li>
+                    <li><strong>Monthly Metrics</strong>: Monthly aggregated statistics.</li>
+                </ul>
             </section>
 
             <!-- Section 17: Troubleshooting -->
