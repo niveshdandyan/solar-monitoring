@@ -308,6 +308,7 @@
                     <li><a href="#pr-analysis"> Performance Ratio & Yield Analysis</a></li>
                     <li><a href="#temperature"> Temperature Effect Analysis</a></li>
                     <li><a href="#data-quality"> Data Quality Analysis</a></li>
+                    <li><a href="#power-anomalies"> Power Anomaly Detection</a></li>
                     <li><a href="#exporting"> Exporting Data & Reports</a></li>
                     <li><a href="#weather-standalone"> Standalone Weather Analysis</a></li>
                     <li><a href="#troubleshooting"> Troubleshooting</a></li>
@@ -606,7 +607,8 @@
                                 <p><strong>Note on Ambiguity:</strong><br>For ambiguous dates like
                                     <code>01/02/2024</code> (Jan 2nd vs Feb 1st), the system defaults to
                                     <strong>Month-First (US)</strong> unless it detects clear day-first indicators in
-                                    other rows (e.g., 25/02/2024).</p>
+                                    other rows (e.g., 25/02/2024).
+                                </p>
                             </td>
                         </tr>
                         <tr>
@@ -1082,9 +1084,21 @@ Temperature Factor = 1 + (Temp Coefficient × (Cell Temp - 25°C))</code></pre>
                 </ul>
 
                 <h3>14.1 Accessing the Tool</h3>
-                <p>Scroll down to the bottom of the main dashboard to find the <strong>"🌤️ Standalone Weather
-                        Analysis"</strong> section. This section is always available, even if you haven't uploaded any
-                    CSV files.</p>
+                <p>The Weather Analysis tool is now a <strong>dedicated view</strong> accessible from the sidebar.</p>
+                <ol>
+                    <li>Look at the <strong>sidebar</strong> (left side of the screen).</li>
+                    <li>At the top, you will see two toggle buttons: <strong>"📊 Data Analysis"</strong> and
+                        <strong>"🌤️ Weather Tool"</strong>.</li>
+                    <li>Click <strong>"🌤️ Weather Tool"</strong> to switch to the standalone Weather Analysis view.
+                    </li>
+                    <li>The main content area will now display the Weather Analysis interface.</li>
+                    <li>To return to your solar data analysis, click <strong>"📊 Data Analysis"</strong>.</li>
+                </ol>
+                <div class="alert alert-tip">
+                    <strong>💡 Tip</strong>
+                    This separation keeps the interface clean and allows you to focus on one task at a time. You can
+                    switch back and forth without losing any data.
+                </div>
 
                 <h3>14.2 Location Selection</h3>
                 <p>Accurate weather data depends on precise location inputs. You have two methods to define your site:
@@ -1212,85 +1226,213 @@ Temperature Factor = 1 + (Temp Coefficient × (Cell Temp - 25°C))</code></pre>
                         </ul>
                     </li>
                 </ol>
+
+                <h3>14.6 Per-Month Analysis</h3>
+                <p>Within the <strong>Monthly Averages</strong> view, you can drill down into specific calendar months.
+                </p>
+                <ol>
+                    <li>A <strong>dropdown selector</strong> appears listing all months in your date range (e.g.,
+                        "2024-01", "2024-02").</li>
+                    <li>Select a month to see its <strong>hourly irradiance</strong> and <strong>hourly
+                            temperature</strong> graphs.</li>
+                    <li>This allows you to compare patterns across different months (e.g., compare January vs. July).
+                    </li>
+                </ol>
+                <p>Use this feature to understand seasonal variations in solar potential.</p>
+
+                <h3>14.7 Calendar Month Averages</h3>
+                <p>At the bottom of the Monthly Averages view, you'll find <strong>Calendar Month Averages</strong>
+                    charts.</p>
+                <ul>
+                    <li>These bar charts show <strong>average irradiance by month</strong> (Jan, Feb, Mar, etc.).</li>
+                    <li>A second chart shows <strong>average temperature by month</strong>.</li>
+                    <li>Each bar is labeled with its exact value for easy reading.</li>
+                </ul>
+                <p>This is particularly useful when analyzing a full year of data to see which months have the highest
+                    solar potential.</p>
+
             </section>
 
-            <!-- Section 15: Troubleshooting -->
-            <section id="troubleshooting">
-                <h2>15. Troubleshooting</h2>
+            <!-- Section 16: Power Anomaly Detection -->
+            <section id="power-anomalies">
+                <h2>16. Power Anomaly Detection</h2>
 
-                <h3>15.1 Common Issues</h3>
+                <p>The <strong>⚠️ Power Anomalies</strong> tab helps you identify periods where your solar system
+                    produced unexpectedly low power despite having sufficient sunlight.</p>
 
-                <h3>"Please upload a file or paste data to process"</h3>
-                <p><strong>Solution:</strong> Upload a CSV file or paste data, then click "🚀 Process Data"</p>
+                <h3>16.1 Purpose</h3>
+                <p>This feature detects potential issues such as:</p>
+                <ul>
+                    <li><strong>Shading</strong>: Partial shading blocking panels during certain hours.</li>
+                    <li><strong>Inverter Issues</strong>: Inverter not starting or tripping during high-irradiance
+                        periods.</li>
+                    <li><strong>Wiring Problems</strong>: Connection issues causing power drops.</li>
+                    <li><strong>Panel Degradation</strong>: Underperforming panels within a string.</li>
+                </ul>
 
-                <h3>Power values showing "None" or 0</h3>
-                <p><strong>Solution:</strong> Check that your column headers match expected formats. Verify column
-                    detection shows ✅ for current and voltage.</p>
-
-                <h3>Performance Ratio showing very low values</h3>
-                <p><strong>Solution:</strong> Verify your Nominal Power setting is in kWp (not W). Check if voltage was
-                    auto-converted from mV.</p>
-
-                <h3>No graphs appearing</h3>
-                <p><strong>Solution:</strong> Ensure your data has all required columns (Timestamp, Current, Voltage,
-                    Irradiance) and at least one full day of readings.</p>
-            </section>
-
-            <!-- Section 16: Glossary -->
-            <section id="glossary">
-                <h2>16. Glossary</h2>
-
+                <h3>16.2 Detection Logic</h3>
+                <p>An anomaly is flagged when:</p>
                 <table>
                     <thead>
                         <tr>
-                            <th>Term</th>
-                            <th>Definition</th>
+                            <th>Condition</th>
+                            <th>Default Value</th>
+                            <th>Meaning</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td><strong>DC Current</strong></td>
-                            <td>Direct current flowing from solar panels (Amperes)</td>
+                            <td><strong>Power < Threshold</strong>
+                            </td>
+                            <td>10 W</td>
+                            <td>Power output is near zero.</td>
                         </tr>
                         <tr>
-                            <td><strong>DC Voltage</strong></td>
-                            <td>Direct current voltage from solar panels (Volts)</td>
+                            <td><strong>Irradiance > Threshold</strong></td>
+                            <td>50 W/m²</td>
+                            <td>There is sufficient sunlight to expect power generation.</td>
                         </tr>
                         <tr>
-                            <td><strong>GHI</strong></td>
-                            <td>Global Horizontal Irradiance – total solar radiation on horizontal surface</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Irradiance</strong></td>
-                            <td>Solar power per unit area (W/m²)</td>
-                        </tr>
-                        <tr>
-                            <td><strong>kWh</strong></td>
-                            <td>Kilowatt-hour – unit of energy</td>
-                        </tr>
-                        <tr>
-                            <td><strong>kWp</strong></td>
-                            <td>Kilowatt-peak – rated power under STC</td>
-                        </tr>
-                        <tr>
-                            <td><strong>PR</strong></td>
-                            <td>Performance Ratio – system efficiency measure</td>
-                        </tr>
-                        <tr>
-                            <td><strong>SoC</strong></td>
-                            <td>State of Charge – battery level (%)</td>
-                        </tr>
-                        <tr>
-                            <td><strong>STC</strong></td>
-                            <td>Standard Test Conditions – 1000 W/m², 25°C</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Specific Yield</strong></td>
-                            <td>Energy per capacity (kWh/kWp)</td>
+                            <td><strong>SoC < Threshold</strong> (if available)</td>
+                            <td>95%</td>
+                            <td>Battery is NOT full. If battery is full (SoC ≥ 95%), low power is expected (curtailment)
+                                and is NOT an anomaly.</td>
                         </tr>
                     </tbody>
                 </table>
-            </section>
+
+                <div class="alert alert-important">
+                    <strong>⚡ SoC Exclusion Logic</strong>
+                    If your data includes Battery State of Charge (SoC), the system automatically excludes periods when
+                    the battery is nearly full. This prevents false positives from power curtailment, which is normal
+                    behavior when your battery is fully charged.
+                </div>
+
+                <h3>16.3 Configurable Thresholds</h3>
+                <p>You can adjust all three thresholds using the input fields at the top of the tab:</p>
+                <ul>
+                    <li><strong>Power Threshold (W)</strong>: Maximum power to consider "low" (default: 10W).</li>
+                    <li><strong>Min Irradiance (W/m²)</strong>: Minimum sunlight to flag as an anomaly (default: 50
+                        W/m²).</li>
+                    <li><strong>SoC Exclusion Threshold (%)</strong>: Exclude data points where SoC is above this value
+                        (default: 95%).</li>
+                </ul>
+
+                <h3>16.4 Summary Metrics</h3>
+                <p>After detection, the tab displays:</p>
+                <ul>
+                    <li><strong>Total Data Points</strong>: Number of readings in your dataset.</li>
+                    <li><strong>Anomalies Detected</strong>: Count of flagged low-power points.</li>
+                    <li><strong>Anomaly Rate</strong>: Percentage of total data that are anomalies.</li>
+                    <li><strong>Avg Irradiance (Anomalies)</strong>: Average sunlight level during anomaly periods.</li>
+                </ul>
+
+                <h3>16.5 Visualizations</h3>
+                <p>Two visualizations help you understand the anomalies:</p>
+
+                <h4>1. Scatter Plot (Power vs Irradiance)</h4>
+                <ul>
+                    <li><strong>Gray points</strong>: Normal operation (power increases with irradiance).</li>
+                    <li><strong>Red points</strong>: Anomalies (low power despite good irradiance).</li>
+                    <li>A dashed red line shows the power threshold, and an orange dashed line shows the irradiance
+                        threshold.</li>
+                </ul>
+
+                <h4>2. Timeline (Daily Anomaly Count)</h4>
+                <ul>
+                    <li>A bar chart showing how many anomalies occurred on each day.</li>
+                    <li>Helps identify if anomalies are concentrated on specific dates (e.g., a shading event on a
+                        particular day).</li>
+                </ul>
+
+                <h3>16.6 Data Table & Export</h3>
+                <p>Expand the <strong>"View All Anomaly Points"</strong> section to see a table of every flagged data
+                    point.</p>
+                <ul>
+                    <li>Columns include: Timestamp, Power, Irradiance, Voltage, Current, SoC (if available).</li>
+                    <li>Click <strong>"📥 Download Anomalies CSV"</strong> to export the table for further analysis.
+                    </li>
+                </ul>
+
+                <!-- Section 15: Troubleshooting -->
+                <section id="troubleshooting">
+                    <h2>15. Troubleshooting</h2>
+
+                    <h3>15.1 Common Issues</h3>
+
+                    <h3>"Please upload a file or paste data to process"</h3>
+                    <p><strong>Solution:</strong> Upload a CSV file or paste data, then click "🚀 Process Data"</p>
+
+                    <h3>Power values showing "None" or 0</h3>
+                    <p><strong>Solution:</strong> Check that your column headers match expected formats. Verify column
+                        detection shows ✅ for current and voltage.</p>
+
+                    <h3>Performance Ratio showing very low values</h3>
+                    <p><strong>Solution:</strong> Verify your Nominal Power setting is in kWp (not W). Check if voltage
+                        was
+                        auto-converted from mV.</p>
+
+                    <h3>No graphs appearing</h3>
+                    <p><strong>Solution:</strong> Ensure your data has all required columns (Timestamp, Current,
+                        Voltage,
+                        Irradiance) and at least one full day of readings.</p>
+                </section>
+
+                <!-- Section 16: Glossary -->
+                <section id="glossary">
+                    <h2>16. Glossary</h2>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Term</th>
+                                <th>Definition</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>DC Current</strong></td>
+                                <td>Direct current flowing from solar panels (Amperes)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>DC Voltage</strong></td>
+                                <td>Direct current voltage from solar panels (Volts)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>GHI</strong></td>
+                                <td>Global Horizontal Irradiance – total solar radiation on horizontal surface</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Irradiance</strong></td>
+                                <td>Solar power per unit area (W/m²)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>kWh</strong></td>
+                                <td>Kilowatt-hour – unit of energy</td>
+                            </tr>
+                            <tr>
+                                <td><strong>kWp</strong></td>
+                                <td>Kilowatt-peak – rated power under STC</td>
+                            </tr>
+                            <tr>
+                                <td><strong>PR</strong></td>
+                                <td>Performance Ratio – system efficiency measure</td>
+                            </tr>
+                            <tr>
+                                <td><strong>SoC</strong></td>
+                                <td>State of Charge – battery level (%)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>STC</strong></td>
+                                <td>Standard Test Conditions – 1000 W/m², 25°C</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Specific Yield</strong></td>
+                                <td>Energy per capacity (kWh/kWp)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
         </main>
 
         <footer>
