@@ -299,18 +299,19 @@
                     <li><a href="#uploading">Uploading Your Data</a></li>
                     <li><a href="#data-format">Data Format Requirements</a></li>
                     <li><a href="#metrics">Understanding Key Metrics</a></li>
-                    <li><a href="#weather">Integrating Weather Data</a></li>
-                    <li><a href="#dashboard">Understanding the Dashboard</a></li>
-                    <li><a href="#daily-analysis">Daily Performance Analysis</a></li>
-                    <li><a href="#monthly-analysis">Monthly Performance Analysis</a></li>
-                    <li><a href="#calendar-view">Calendar View</a></li>
-                    <li><a href="#custom-range">Custom Range Analysis</a></li>
-                    <li><a href="#pr-analysis">Performance Ratio & Yield Analysis</a></li>
-                    <li><a href="#temperature">Temperature Effect Analysis</a></li>
-                    <li><a href="#data-quality">Data Quality Analysis</a></li>
-                    <li><a href="#exporting">Exporting Data & Reports</a></li>
-                    <li><a href="#troubleshooting">Troubleshooting</a></li>
-                    <li><a href="#glossary">Glossary</a></li>
+                    <li><a href="#weather-integration"> Integrating Weather Data (For Uploaded Data)</a></li>
+                    <li><a href="#dashboard"> Understanding the Dashboard</a></li>
+                    <li><a href="#daily-analysis"> Daily Performance Analysis</a></li>
+                    <li><a href="#monthly-analysis"> Monthly Performance Analysis</a></li>
+                    <li><a href="#calendar-view"> Calendar View</a></li>
+                    <li><a href="#custom-range"> Custom Range Analysis</a></li>
+                    <li><a href="#pr-analysis"> Performance Ratio & Yield Analysis</a></li>
+                    <li><a href="#temperature"> Temperature Effect Analysis</a></li>
+                    <li><a href="#data-quality"> Data Quality Analysis</a></li>
+                    <li><a href="#exporting"> Exporting Data & Reports</a></li>
+                    <li><a href="#weather-standalone"> Standalone Weather Analysis</a></li>
+                    <li><a href="#troubleshooting"> Troubleshooting</a></li>
+                    <li><a href="#glossary"> Glossary</a></li>
                 </ol>
             </nav>
 
@@ -589,8 +590,24 @@
                             <td><code>timestamp</code>, <code>time</code>, <code>date</code>, <code>datetime</code>,
                                 <code>dt</code>
                             </td>
-                            <td><strong>Format:</strong> ISO 8601 (<code>YYYY-MM-DD HH:MM:SS</code>) is recommended. The
-                                system also attempts to parse <code>DD/MM/YYYY</code> and <code>MM/DD/YYYY</code>.</td>
+                            <td>
+                                <p><strong>Supported Formats:</strong></p>
+                                <ul>
+                                    <li><strong>ISO 8601
+                                            (Recommended):</strong><br><code>YYYY-MM-DD HH:MM:SS</code><br><em>Example:
+                                            2024-03-15 14:30:00</em></li>
+                                    <li><strong>European
+                                            (Day-First):</strong><br><code>DD/MM/YYYY HH:MM</code><br><em>Example:
+                                            15/03/2024 14:30</em></li>
+                                    <li><strong>US
+                                            (Month-First):</strong><br><code>MM/DD/YYYY HH:MM</code><br><em>Example:
+                                            03/15/2024 14:30</em></li>
+                                </ul>
+                                <p><strong>Note on Ambiguity:</strong><br>For ambiguous dates like
+                                    <code>01/02/2024</code> (Jan 2nd vs Feb 1st), the system defaults to
+                                    <strong>Month-First (US)</strong> unless it detects clear day-first indicators in
+                                    other rows (e.g., 25/02/2024).</p>
+                            </td>
                         </tr>
                         <tr>
                             <td><strong>Current (DC)</strong></td>
@@ -693,7 +710,7 @@ Temperature Factor = 1 + (Temp Coefficient × (Cell Temp - 25°C))</code></pre>
             </section>
 
             <!-- Section 7: Integrating Weather -->
-            <section id="weather">
+            <section id="weather-integration">
                 <h2 id="weather">7. Integrating Weather Data</h2>
                 <p>If your uploaded data lacks <strong>Irradiance</strong> or <strong>Temperature</strong> readings,
                     or
@@ -995,23 +1012,21 @@ Temperature Factor = 1 + (Temp Coefficient × (Cell Temp - 25°C))</code></pre>
                 <p>Verifies if readings (Voltage, Irradiance, Temp) are within realistic physical limits.</p>
             </section>
 
-            <!-- Section 16: Exporting -->
+            <!-- Section 13: Exporting -->
             <section id="exporting">
-                <h2>16. Exporting Data & Reports</h2>
+                <h2>13. Exporting Data & Reports</h2>
 
-                <p>Navigate to the <strong>💾 Export Options</strong> section to generate customized reports and
-                    data.
+                <p>Navigate to the <strong>💾 Export Options</strong> section to generate customized reports and data.
                     The
                     interface is divided into two tabs: <strong>📊 Graph Export</strong> and <strong>📝 Data
-                        Export</strong>.
-                </p>
+                        Export</strong>.</p>
 
                 <figure class="screenshot">
                     <img src="docs/images/export_options.png" alt="Export Options">
                     <figcaption>Figure 9: Export Options - Generate graph images and download data CSVs</figcaption>
                 </figure>
 
-                <h3>16.1 Graph Export</h3>
+                <h3>13.1 Graph Export</h3>
                 <p>Generate high-resolution images of your charts with advanced filtering.</p>
 
                 <h4>1. Select Filters</h4>
@@ -1022,26 +1037,23 @@ Temperature Factor = 1 + (Temp Coefficient × (Cell Temp - 25°C))</code></pre>
                 </ul>
 
                 <h4>2. Generate</h4>
-                <p>Click <strong>"📥 Generate Selected Graphs"</strong>. The system will create the requested images
-                    in
+                <p>Click <strong>"📥 Generate Selected Graphs"</strong>. The system will create the requested images in
                     the
                     filtered date range.</p>
 
                 <h4>3. Download</h4>
                 <ul>
-                    <li><strong>View List</strong>: Expand the "Exported Files" section to see what was created.
-                    </li>
+                    <li><strong>View List</strong>: Expand the "Exported Files" section to see what was created.</li>
                     <li><strong>Download ZIP</strong>: Click <strong>"📦 Download Graphs as ZIP"</strong> to get all
                         generated files in one package.</li>
                 </ul>
 
-                <h3>16.2 Data Export</h3>
+                <h3>13.2 Data Export</h3>
                 <p>Create custom CSV files of your processed data.</p>
 
                 <h4>1. Custom CSV</h4>
                 <ul>
-                    <li><strong>Select Columns</strong>: Choose specific columns you need (e.g.,
-                        <code>Timestamp</code>,
+                    <li><strong>Select Columns</strong>: Choose specific columns you need (e.g., <code>Timestamp</code>,
                         <code>Power_W</code>).
                     </li>
                     <li><strong>Download</strong>: Click <strong>"📥 Download Custom CSV"</strong>.</li>
@@ -1056,11 +1068,157 @@ Temperature Factor = 1 + (Temp Coefficient × (Cell Temp - 25°C))</code></pre>
                 </ul>
             </section>
 
-            <!-- Section 17: Troubleshooting -->
-            <section id="troubleshooting">
-                <h2>17. Troubleshooting</h2>
+            <!-- Section 14: Standalone Weather Analysis -->
+            <section id="weather-standalone">
+                <h2>14. Standalone Weather Analysis</h2>
 
-                <h3>17.1 Common Issues</h3>
+                <p>The <strong>Standalone Weather Analysis</strong> tool allows you to explore historical weather data
+                    for any location on Earth without needing to upload your own solar data first. This is powerful for:
+                </p>
+                <ul>
+                    <li><strong>Site Selection</strong>: Analyzing solar potential before installing panels.</li>
+                    <li><strong>Comparison</strong>: Benchmarking your system against satellite weather data.</li>
+                    <li><strong>Historical Review</strong>: Checking weather conditions for past dates.</li>
+                </ul>
+
+                <h3>14.1 Accessing the Tool</h3>
+                <p>Scroll down to the bottom of the main dashboard to find the <strong>"🌤️ Standalone Weather
+                        Analysis"</strong> section. This section is always available, even if you haven't uploaded any
+                    CSV files.</p>
+
+                <h3>14.2 Location Selection</h3>
+                <p>Accurate weather data depends on precise location inputs. You have two methods to define your site:
+                </p>
+
+                <div class="two-column">
+                    <div>
+                        <h4>Method A: Google Maps URL (Recommended)</h4>
+                        <ol>
+                            <li>Open Google Maps and find your exact location.</li>
+                            <li>Copy the URL from your browser address bar.</li>
+                            <li>Select <strong>"Google Maps URL"</strong> in the input tool.</li>
+                            <li>Paste the link and click <strong>"📍 Parse URL"</strong>.</li>
+                            <li>The system will extract the exact Latitude and Longitude.</li>
+                        </ol>
+                    </div>
+                    <div>
+                        <h4>Method B: Manual Coordinates</h4>
+                        <ol>
+                            <li>Select <strong>"Coordinates"</strong> in the input tool.</li>
+                            <li>Manually enter the <strong>Latitude</strong> and <strong>Longitude</strong>.
+                                <ul>
+                                    <li><em>Latitude range</em>: -90 to 90 (North is positive, South is negative).</li>
+                                    <li><em>Longitude range</em>: -180 to 180 (East is positive, West is negative).</li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+
+                <h3>14.3 Date Range Selection</h3>
+                <p>Choose the historical period you want to analyze.</p>
+
+                <ul>
+                    <li><strong>Quick Select</strong>: Use the dropdown for one-click presets:
+                        <ul>
+                            <li><em>Last 7 Days</em> (Recent weather)</li>
+                            <li><em>Last 30 Days</em> (Monthly review)</li>
+                            <li><em>Last 3 Months / 6 Months / 1 Year</em> (Seasonal and annual trends)</li>
+                        </ul>
+                    </li>
+                    <li><strong>Custom Range</strong>: Select "Custom Range" to pick specific <strong>Start</strong> and
+                        <strong>End</strong> dates from the calendar.
+                    </li>
+                </ul>
+
+                <div class="alert alert-note">
+                    <strong>⏳ Data Availability</strong>
+                    The Open-Meteo API provides historical data with a delay of about 1-2 days. You cannot fetch data
+                    for "today" or future forecasts in this historical tool.
+                </div>
+
+                <h3>14.4 Understanding Weather Metrics</h3>
+                <p>Once you click <strong>"☁️ Fetch Weather Data"</strong>, the tool provides detailed atmospheric
+                    insights.</p>
+
+                <h4>Solar Irradiance Components</h4>
+                <p>Understanding the different types of solar radiation is critical for accurate analysis:</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>Symbol</th>
+                            <th>Description</th>
+                            <th>Visual Analogy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Direct Irradiance</strong></td>
+                            <td>DNI</td>
+                            <td>Sunlight coming straight from the sun without scattering.</td>
+                            <td>The light that casts sharp shadows. If you block the sun with your hand, you block this.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Diffuse Irradiance</strong></td>
+                            <td>DHI</td>
+                            <td>Sunlight scattered by clouds, atmosphere, and dust.</td>
+                            <td>The light on a cloudy day. It comes from the "whole sky" rather than just the sun disk.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Global Horizontal Irradiance</strong></td>
+                            <td><strong>GHI</strong></td>
+                            <td>The <strong>total</strong> energy hitting a flat, horizontal surface.</td>
+                            <td><strong>GHI = Direct + Diffuse</strong>. This is the most important number for standard
+                                flat solar panels.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4>Key Metrics Displayed</h4>
+                <ul>
+                    <li><strong>Avg Irradiance</strong>: Theoretical average GHI during daylight hours.</li>
+                    <li><strong>Peak Irradiance</strong>: The highest solar intensity recorded in the period.</li>
+                    <li><strong>Total Irradiance</strong>: Total energy potential (kWh/m²) for the period.</li>
+                    <li><strong>Daylight Hours</strong>: Calculated time between Sunrise and Sunset.</li>
+                </ul>
+
+                <h3>14.5 Visualization Views</h3>
+                <p>Switch between three different views to analyze the data:</p>
+
+                <ol>
+                    <li><strong>Daily Analysis</strong>:
+                        <ul>
+                            <li>Detailed 24-hour profile for a single specific date.</li>
+                            <li>Includes precise <strong>Sunrise</strong> 🌅 and <strong>Sunset</strong> 🌇 times.</li>
+                            <li>Visualizes how clouds (diffuse light) impacted the day vs. clear sun (direct light).
+                            </li>
+                        </ul>
+                    </li>
+                    <li><strong>Monthly Averages</strong>:
+                        <ul>
+                            <li>Shows the "Typical Day" for the selected period.</li>
+                            <li>Smoothes out daily weather noise to show seasonal trends in irradiance and temperature.
+                            </li>
+                        </ul>
+                    </li>
+                    <li><strong>Data Tables</strong>:
+                        <ul>
+                            <li>View the raw hourly and daily numbers.</li>
+                            <li>Useful for exporting or manual checking.</li>
+                        </ul>
+                    </li>
+                </ol>
+            </section>
+
+            <!-- Section 15: Troubleshooting -->
+            <section id="troubleshooting">
+                <h2>15. Troubleshooting</h2>
+
+                <h3>15.1 Common Issues</h3>
 
                 <h3>"Please upload a file or paste data to process"</h3>
                 <p><strong>Solution:</strong> Upload a CSV file or paste data, then click "🚀 Process Data"</p>
@@ -1078,9 +1236,9 @@ Temperature Factor = 1 + (Temp Coefficient × (Cell Temp - 25°C))</code></pre>
                     Irradiance) and at least one full day of readings.</p>
             </section>
 
-            <!-- Section 18: Glossary -->
+            <!-- Section 16: Glossary -->
             <section id="glossary">
-                <h2>18. Glossary</h2>
+                <h2>16. Glossary</h2>
 
                 <table>
                     <thead>

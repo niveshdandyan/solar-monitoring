@@ -2150,3 +2150,153 @@ def get_anomaly_summary(daily_metrics: pd.DataFrame) -> dict:
     
     return summary
 
+
+# ============================================================================
+# POWER ANOMALY DETECTION
+# ============================================================================
+
+def detect_power_anomalies(
+    df: pd.DataFrame,
+    power_threshold: float = 10.0,
+    irradiance_threshold: float = 50.0,
+    soc_threshold: float = 95.0
+) -> pd.DataFrame:
+    """
+    Detect power anomalies: low power output when irradiance is high.
+    
+    Excludes high SoC periods (battery full = normal curtailment, not anomaly).
+    
+    Args:
+        df: DataFrame with Power_W, Irradiance_Wm2, and optionally SoC_pct
+        power_threshold: Max power to consider "low" (default 10W)
+        irradiance_threshold: Min irradiance to consider "sufficient" (default 50 W/m²)
+        soc_threshold: SoC above which to exclude from anomalies (default 95%)
+        
+    Returns:
+        DataFrame containing only anomaly data points
+    """
+    if 'Power_W' not in df.columns or 'Irradiance_Wm2' not in df.columns:
+        return pd.DataFrame()
+    
+    # Base filter: Low power but sufficient irradiance
+    anomaly_mask = (
+        (df['Power_W'] < power_threshold) & 
+        (df['Irradiance_Wm2'] > irradiance_threshold)
+    )
+    
+    # If SoC data exists, exclude high SoC periods (battery full = not an anomaly)
+    if 'SoC_pct' in df.columns:
+        soc_filter = df['SoC_pct'] < soc_threshold
+        anomaly_mask = anomaly_mask & soc_filter
+    
+    return df[anomaly_mask].copy()
+
+
+def plot_power_anomaly_scatter(
+    df: pd.DataFrame,
+    anomalies: pd.DataFrame,
+    output_dir: str = None,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """
+    Create scatter plot of Power vs Irradiance with anomalies highlighted.
+    """
+    if 'Power_W' not in df.columns or 'Irradiance_Wm2' not in df.columns:
+        return None
+    
+    fig, ax = plt.subplots(figsize=(12, 8))
+    
+    # Plot all data points in gray
+    ax.scatter(
+        df['Irradiance_Wm2'], 
+        df['Power_W'], 
+        c='#CCCCCC', 
+        alpha=0.3, 
+        s=15, 
+        label='Normal Operation'
+    )
+    
+    # Highlight anomalies in red
+    if len(anomalies) > 0:
+        ax.scatter(
+            anomalies['Irradiance_Wm2'], 
+            anomalies['Power_W'], 
+            c='#E74C3C', 
+            alpha=0.8, 
+            s=30, 
+            label=f'Anomalies ({len(anomalies)} points)',
+            edgecolors='darkred',
+            linewidths=0.5
+        )
+    
+    ax.set_xlabel('Irradiance (W/m²)', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Power (W)', fontsize=12, fontweight='bold')
+    ax.set_title('Power vs Irradiance - Anomaly Detection', fontsize=14, fontweight='bold', pad=20)
+    ax.legend(loc='upper left')
+    ax.grid(True, alpha=0.3)
+    
+    # Add annotation for anomaly zone
+    if len(anomalies) > 0:
+        ax.axhline(y=10, color='red', linestyle='--', alpha=0.5, linewidth=1)
+        ax.axvline(x=50, color='orange', linestyle='--', alpha=0.5, linewidth=1)
+        ax.text(55, 5, 'Anomaly Zone\n(Low Power + Good Sun)', 
+                fontsize=9, color='red', alpha=0.7)
+    
+    fig.tight_layout()
+    
+    if show_plot:
+        return fig
+    
+    if output_dir:
+        filepath = os.path.join(output_dir, 'daily', 'Power_Anomaly_Scatter.png')
+        return save_figure(fig, filepath)
+    
+    return fig
+
+
+def plot_power_anomaly_timeline(
+    anomalies: pd.DataFrame,
+    output_dir: str = None,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """
+    Create timeline showing when anomalies occurred.
+    """
+    if len(anomalies) == 0 or 'Timestamp' not in anomalies.columns:
+        return None
+    
+    fig, ax = plt.subplots(figsize=(14, 6))
+    
+    # Group by date and count anomalies
+    anomalies_copy = anomalies.copy()
+    anomalies_copy['Date'] = pd.to_datetime(anomalies_copy['Timestamp']).dt.date
+    daily_counts = anomalies_copy.groupby('Date').size().reset_index(name='Count')
+    
+    # Bar chart of daily anomaly counts
+    ax.bar(
+        range(len(daily_counts)), 
+        daily_counts['Count'], 
+        color='#E74C3C', 
+        alpha=0.8,
+        edgecolor='darkred'
+    )
+    
+    ax.set_xlabel('Date', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Anomaly Count', fontsize=12, fontweight='bold')
+    ax.set_title('Power Anomalies Over Time', fontsize=14, fontweight='bold', pad=20)
+    ax.set_xticks(range(len(daily_counts)))
+    ax.set_xticklabels([str(d) for d in daily_counts['Date']], rotation=45, ha='right')
+    ax.grid(True, alpha=0.3, axis='y')
+    
+    fig.tight_layout()
+    
+    if show_plot:
+        return fig
+    
+    if output_dir:
+        filepath = os.path.join(output_dir, 'daily', 'Power_Anomaly_Timeline.png')
+        return save_figure(fig, filepath)
+    
+    return fig
+
+

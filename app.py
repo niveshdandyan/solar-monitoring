@@ -7,6 +7,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import os
+import matplotlib.pyplot as plt
 from datetime import datetime
 
 # Import custom modules
@@ -53,7 +54,10 @@ from modules.visualizations import (
     plot_calendar_heatmap,
     plot_daily_summary_cards,
     detect_daily_anomalies,
-    get_anomaly_summary
+    get_anomaly_summary,
+    detect_power_anomalies,
+    plot_power_anomaly_scatter,
+    plot_power_anomaly_timeline
 )
 from modules.export import (
     get_export_directory,
@@ -78,7 +82,16 @@ from modules.data_quality import (
 from modules.weather_api import (
     extract_coordinates_from_url,
     fetch_weather_data,
-    merge_weather_with_solar
+    merge_weather_with_solar,
+    fetch_standalone_weather_data
+)
+from modules.weather_visualizations import (
+    plot_weather_daily_irradiance,
+    plot_weather_daily_temperature,
+    plot_weather_monthly_avg_irradiance,
+    plot_weather_monthly_avg_temperature,
+    plot_weather_daily_summary,
+    plot_weather_calendar_month_averages
 )
 
 # Page configuration
@@ -141,7 +154,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize session state
 if 'data_loaded' not in st.session_state:
     st.session_state.data_loaded = False
 if 'analysis_df' not in st.session_state:
@@ -152,6 +164,8 @@ if 'daily_metrics' not in st.session_state:
     st.session_state.daily_metrics = None
 if 'monthly_metrics' not in st.session_state:
     st.session_state.monthly_metrics = None
+if 'view_mode' not in st.session_state:
+    st.session_state.view_mode = 'data_analysis'  # 'data_analysis' or 'weather_analysis'
 
 # Get export directory
 EXPORT_DIR = get_export_directory(os.path.join(os.path.dirname(__file__), "exports"))
@@ -165,6 +179,20 @@ def main():
     # Sidebar
     with st.sidebar:
         st.header("⚙️ System Configuration")
+        
+        # View mode toggle
+        st.markdown("---")
+        col_view1, col_view2 = st.columns(2)
+        with col_view1:
+            if st.button("📊 Data Analysis", use_container_width=True, 
+                        type="primary" if st.session_state.view_mode == 'data_analysis' else "secondary"):
+                st.session_state.view_mode = 'data_analysis'
+                st.rerun()
+        with col_view2:
+            if st.button("🌤️ Weather Tool", use_container_width=True,
+                        type="primary" if st.session_state.view_mode == 'weather_analysis' else "secondary"):
+                st.session_state.view_mode = 'weather_analysis'
+                st.rerun()
         
         st.markdown("---")
         st.subheader("📊 System Parameters")
@@ -368,10 +396,28 @@ def main():
                 except Exception as e:
                     st.error(f"❌ Error processing data: {str(e)}")
                     st.exception(e)
-    
-    # Display results if data is loaded
-    if st.session_state.data_loaded:
-        display_analysis_results(vmpp, impp)
+    # View mode conditional display
+    if st.session_state.view_mode == 'weather_analysis':
+        # Weather Analysis Mode - Full screen dedicated view
+        st.markdown("## 🌤️ Standalone Weather Analysis")
+        st.caption("*Analyze historical weather data for any location - useful for site selection and solar potential analysis.*")
+        display_weather_analysis(EXPORT_DIR)
+    else:
+        # Data Analysis Mode - Show uploaded data analysis
+        if st.session_state.data_loaded:
+            display_analysis_results(vmpp, impp)
+        else:
+            st.info("👆 **Upload your solar data** using the sidebar to begin analysis.")
+            st.markdown("""
+            ### 🚀 Quick Start
+            1. Configure your **system parameters** (Nominal Power, Temperature Coefficient)
+            2. **Upload a CSV file** or paste data directly
+            3. Click **🚀 Process Data** to analyze
+            
+            ---
+            
+            💡 **Tip:** Use the **🌤️ Weather Tool** button above to explore historical weather data for any location without uploading solar data.
+            """)
 
 
 def display_analysis_results(vmpp: float, impp: float):
@@ -432,7 +478,7 @@ def display_analysis_results(vmpp: float, impp: float):
     st.markdown("---")
     
     # Tabs for different visualizations
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
         "📈 Daily Graphs", 
         "📊 Monthly Graphs",
         "📅 Calendar View",
@@ -440,6 +486,7 @@ def display_analysis_results(vmpp: float, impp: float):
         "📈 PR & Yield Analysis", 
         "🌡️ Temperature Effects",
         "📋 Data Quality",
+        "⚠️ Power Anomalies",
         "💾 Export All"
     ])
     
@@ -465,6 +512,9 @@ def display_analysis_results(vmpp: float, impp: float):
         display_data_quality(analysis_df)
     
     with tab8:
+        display_power_anomalies(analysis_df, EXPORT_DIR)
+    
+    with tab9:
         display_export_section(analysis_df, daily_metrics, monthly_metrics, EXPORT_DIR)
 
 
@@ -1375,6 +1425,512 @@ def display_data_quality(analysis_df: pd.DataFrame):
             st.metric("Total Operating Hours", f"{total_hours:.1f} hrs")
         else:
             st.info("Operating hours require Power data")
+
+
+def display_power_anomalies(analysis_df: pd.DataFrame, export_dir: str):
+    """Display power anomaly detection and analysis."""
+    
+    st.subheader("⚠️ Power Anomaly Detection")
+    st.info("""
+    **Detects unexpected low power output** when irradiance is sufficient.
+    
+    If your data includes **Battery SoC**, periods of high SoC (battery full) are 
+    automatically excluded — power curtailment due to full battery is *not* an anomaly.
+    """)
+    
+    # Check required columns
+    if 'Power_W' not in analysis_df.columns:
+        st.warning("⚠️ Power data is required for anomaly detection.")
+        return
+    
+    if 'Irradiance_Wm2' not in analysis_df.columns:
+        st.warning("⚠️ Irradiance data is required for anomaly detection.")
+        return
+    
+    # Threshold settings
+    st.markdown("### ⚙️ Detection Settings")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        power_threshold = st.number_input(
+            "Power Threshold (W)",
+            min_value=0.0,
+            max_value=100.0,
+            value=10.0,
+            step=1.0,
+            help="Data points with power below this value are flagged as potential anomalies"
+        )
+    
+    with col2:
+        irradiance_threshold = st.number_input(
+            "Min Irradiance (W/m²)",
+            min_value=0.0,
+            max_value=500.0,
+            value=50.0,
+            step=10.0,
+            help="Only flag anomalies when irradiance is above this threshold"
+        )
+    
+    with col3:
+        has_soc = 'SoC_pct' in analysis_df.columns
+        if has_soc:
+            soc_threshold = st.number_input(
+                "SoC Exclusion Threshold (%)",
+                min_value=50.0,
+                max_value=100.0,
+                value=float(st.session_state.get('soc_threshold', 95.0)),
+                step=1.0,
+                help="Exclude periods when battery SoC is above this value (not anomalies)"
+            )
+        else:
+            soc_threshold = 95.0
+            st.info("📊 No SoC data - all low-power periods will be flagged")
+    
+    # Detect anomalies
+    anomalies = detect_power_anomalies(
+        analysis_df,
+        power_threshold=power_threshold,
+        irradiance_threshold=irradiance_threshold,
+        soc_threshold=soc_threshold
+    )
+    
+    st.markdown("---")
+    
+    # Summary metrics
+    st.markdown("### 📊 Summary")
+    
+    total_points = len(analysis_df)
+    anomaly_count = len(anomalies)
+    anomaly_pct = (anomaly_count / total_points * 100) if total_points > 0 else 0
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Total Data Points", f"{total_points:,}")
+    
+    with col2:
+        st.metric("Anomalies Detected", f"{anomaly_count:,}")
+    
+    with col3:
+        st.metric("Anomaly Rate", f"{anomaly_pct:.2f}%")
+    
+    with col4:
+        if anomaly_count > 0:
+            avg_irr_during_anomaly = anomalies['Irradiance_Wm2'].mean()
+            st.metric("Avg Irradiance (Anomalies)", f"{avg_irr_during_anomaly:.0f} W/m²")
+        else:
+            st.metric("Status", "✅ No Anomalies")
+    
+    if anomaly_count == 0:
+        st.success("🎉 **No power anomalies detected!** Your system appears to be operating normally.")
+        return
+    
+    st.markdown("---")
+    
+    # Visualizations
+    st.markdown("### 📈 Visualizations")
+    
+    viz_tab1, viz_tab2 = st.tabs(["Scatter Plot", "Timeline"])
+    
+    with viz_tab1:
+        st.markdown("**Power vs Irradiance** - Anomalies highlighted in red")
+        fig_scatter = plot_power_anomaly_scatter(analysis_df, anomalies, show_plot=True)
+        if fig_scatter:
+            st.pyplot(fig_scatter)
+    
+    with viz_tab2:
+        st.markdown("**Daily Anomaly Count** - When did anomalies occur?")
+        fig_timeline = plot_power_anomaly_timeline(anomalies, show_plot=True)
+        if fig_timeline:
+            st.pyplot(fig_timeline)
+        else:
+            st.info("Timeline requires Timestamp data.")
+    
+    st.markdown("---")
+    
+    # Data Table
+    st.markdown("### 📋 Anomaly Data")
+    
+    with st.expander(f"View All {anomaly_count} Anomaly Points", expanded=False):
+        # Select relevant columns for display
+        display_cols = ['Timestamp', 'Power_W', 'Irradiance_Wm2']
+        if 'Voltage_V' in anomalies.columns:
+            display_cols.append('Voltage_V')
+        if 'Current_A' in anomalies.columns:
+            display_cols.append('Current_A')
+        if 'SoC_pct' in anomalies.columns:
+            display_cols.append('SoC_pct')
+        if 'Temperature_C' in anomalies.columns:
+            display_cols.append('Temperature_C')
+        
+        available_cols = [c for c in display_cols if c in anomalies.columns]
+        st.dataframe(anomalies[available_cols], use_container_width=True, height=400)
+        
+        # Download button
+        csv_data = anomalies[available_cols].to_csv(index=False)
+        st.download_button(
+            label="📥 Download Anomalies CSV",
+            data=csv_data,
+            file_name="power_anomalies.csv",
+            mime="text/csv"
+        )
+
+
+def display_weather_analysis(export_dir: str):
+    """Display standalone weather analysis tab for site selection and analysis."""
+    
+    st.subheader("🌤️ Weather Analysis")
+    st.info("**Standalone Weather Analysis** - Fetch historical weather data for any location to analyze solar potential. This is independent of your uploaded solar data.")
+    
+    # Initialize session state for weather data
+    if 'weather_hourly_df' not in st.session_state:
+        st.session_state.weather_hourly_df = None
+    if 'weather_daily_df' not in st.session_state:
+        st.session_state.weather_daily_df = None
+    if 'weather_location' not in st.session_state:
+        st.session_state.weather_location = None
+    
+    # Location Input Section
+    st.markdown("### 📍 Location")
+    
+    col_loc1, col_loc2 = st.columns([2, 1])
+    
+    with col_loc1:
+        location_mode = st.radio(
+            "Input Method",
+            options=["Coordinates", "Google Maps URL"],
+            horizontal=True,
+            key="weather_location_mode"
+        )
+    
+    weather_lat, weather_lon = 0.0, 0.0
+    
+    if location_mode == "Google Maps URL":
+        map_url = st.text_input(
+            "Paste Google Maps URL",
+            placeholder="https://www.google.com/maps/@22.3964,114.1095,15z",
+            key="weather_map_url"
+        )
+        if map_url:
+            parsed_lat, parsed_lon = extract_coordinates_from_url(map_url)
+            if parsed_lat is not None:
+                weather_lat, weather_lon = parsed_lat, parsed_lon
+                st.success(f"📍 Extracted: {weather_lat:.4f}, {weather_lon:.4f}")
+            else:
+                st.warning("Could not extract coordinates from URL")
+    
+    col_lat, col_lon = st.columns(2)
+    with col_lat:
+        weather_lat = st.number_input(
+            "Latitude",
+            value=weather_lat,
+            min_value=-90.0,
+            max_value=90.0,
+            format="%.4f",
+            key="weather_lat"
+        )
+    with col_lon:
+        weather_lon = st.number_input(
+            "Longitude",
+            value=weather_lon,
+            min_value=-180.0,
+            max_value=180.0,
+            format="%.4f",
+            key="weather_lon"
+        )
+    
+    st.markdown("### 📅 Date Range")
+    
+    col_range1, col_range2, col_range3 = st.columns([1, 1, 1])
+    
+    from datetime import datetime, timedelta
+    
+    with col_range1:
+        range_mode = st.selectbox(
+            "Quick Select",
+            options=["Last 7 Days", "Last 30 Days", "Last 3 Months", "Last 6 Months", "Last Year", "Custom Range"],
+            key="weather_range_mode"
+        )
+    
+    # Calculate default dates based on selection
+    today = datetime.now().date()
+    
+    if range_mode == "Last 7 Days":
+        default_start = today - timedelta(days=7)
+        default_end = today - timedelta(days=1)  # Yesterday (API might not have today's data)
+    elif range_mode == "Last 30 Days":
+        default_start = today - timedelta(days=30)
+        default_end = today - timedelta(days=1)
+    elif range_mode == "Last 3 Months":
+        default_start = today - timedelta(days=90)
+        default_end = today - timedelta(days=1)
+    elif range_mode == "Last 6 Months":
+        default_start = today - timedelta(days=180)
+        default_end = today - timedelta(days=1)
+    elif range_mode == "Last Year":
+        default_start = today - timedelta(days=365)
+        default_end = today - timedelta(days=1)
+    else:
+        default_start = today - timedelta(days=30)
+        default_end = today - timedelta(days=1)
+    
+    with col_range2:
+        start_date = st.date_input(
+            "Start Date",
+            value=default_start,
+            max_value=today - timedelta(days=1),
+            key="weather_start_date"
+        )
+    
+    with col_range3:
+        end_date = st.date_input(
+            "End Date",
+            value=default_end,
+            min_value=start_date,
+            max_value=today - timedelta(days=1),
+            key="weather_end_date"
+        )
+    
+    days_selected = (end_date - start_date).days + 1
+    st.caption(f"📅 Selected period: **{days_selected} days** ({start_date} to {end_date})")
+    
+    # Fetch button
+    if st.button("☁️ Fetch Weather Data", type="primary", use_container_width=True, key="fetch_weather_btn"):
+        if weather_lat == 0.0 and weather_lon == 0.0:
+            st.error("Please enter valid coordinates")
+        else:
+            with st.spinner("Fetching weather data from Open-Meteo..."):
+                hourly_df, daily_df = fetch_standalone_weather_data(
+                    weather_lat,
+                    weather_lon,
+                    datetime.combine(start_date, datetime.min.time()),
+                    datetime.combine(end_date, datetime.min.time())
+                )
+                
+                if hourly_df is not None and daily_df is not None:
+                    st.session_state.weather_hourly_df = hourly_df
+                    st.session_state.weather_daily_df = daily_df
+                    st.session_state.weather_location = (weather_lat, weather_lon)
+                    st.success(f"✅ Fetched {len(hourly_df)} hourly records and {len(daily_df)} daily records")
+                    st.rerun()
+                else:
+                    st.error("Failed to fetch weather data. Please check your coordinates and date range.")
+    
+    # Display data if available
+    if st.session_state.weather_hourly_df is not None and st.session_state.weather_daily_df is not None:
+        hourly_df = st.session_state.weather_hourly_df
+        daily_df = st.session_state.weather_daily_df
+        
+        st.markdown("---")
+        
+        # Summary Metrics
+        st.markdown("### 📊 Summary")
+        
+        col1, col2, col3, col4, col5 = st.columns(5)
+        
+        with col1:
+            avg_irr = hourly_df['Irradiance_Wm2'].mean()
+            st.metric("Avg Irradiance", f"{avg_irr:.0f} W/m²")
+        
+        with col2:
+            max_irr = hourly_df['Irradiance_Wm2'].max()
+            st.metric("Peak Irradiance", f"{max_irr:.0f} W/m²")
+        
+        with col3:
+            avg_temp = hourly_df['Temperature_C'].mean()
+            st.metric("Avg Temperature", f"{avg_temp:.1f}°C")
+        
+        with col4:
+            if 'Total_Irradiance_kWhm2' in daily_df.columns:
+                total_irr = daily_df['Total_Irradiance_kWhm2'].sum()
+                st.metric("Total Irradiance", f"{total_irr:.1f} kWh/m²")
+        
+        with col5:
+            if 'Daylight_Hours' in daily_df.columns:
+                avg_daylight = daily_df['Daylight_Hours'].mean()
+                st.metric("Avg Daylight", f"{avg_daylight:.1f} hrs")
+        
+        st.markdown("---")
+        
+        # View Selection
+        view_mode = st.radio(
+            "View Mode",
+            options=["Daily Analysis", "Monthly Averages", "Data Tables"],
+            horizontal=True,
+            key="weather_view_mode"
+        )
+        
+        if view_mode == "Daily Analysis":
+            st.markdown("### 📈 Daily Analysis")
+            
+            # Date selection
+            unique_dates = sorted(hourly_df['Date'].unique())
+            date_options = [str(d) for d in unique_dates]
+            
+            selected_date = st.selectbox(
+                "Select Date",
+                options=date_options,
+                index=0,
+                key="weather_daily_date"
+            )
+            
+            # Get sunrise/sunset for selected date
+            selected_daily = daily_df[daily_df['Date'].astype(str) == selected_date]
+            
+            if not selected_daily.empty:
+                row = selected_daily.iloc[0]
+                col_sun1, col_sun2, col_sun3, col_sun4 = st.columns(4)
+                
+                with col_sun1:
+                    if pd.notna(row.get('Sunrise')):
+                        sunrise_str = row['Sunrise'].strftime('%H:%M')
+                        st.metric("🌅 Sunrise", sunrise_str)
+                
+                with col_sun2:
+                    if pd.notna(row.get('Sunset')):
+                        sunset_str = row['Sunset'].strftime('%H:%M')
+                        st.metric("🌇 Sunset", sunset_str)
+                
+                with col_sun3:
+                    if pd.notna(row.get('Daylight_Hours')):
+                        st.metric("☀️ Daylight", f"{row['Daylight_Hours']:.1f} hrs")
+                
+                with col_sun4:
+                    if pd.notna(row.get('Total_Irradiance_kWhm2')):
+                        st.metric("⚡ Daily Energy", f"{row['Total_Irradiance_kWhm2']:.2f} kWh/m²")
+            
+            # Graphs
+            col_g1, col_g2 = st.columns(2)
+            
+            with col_g1:
+                st.markdown("#### Irradiance vs Time")
+                fig = plot_weather_daily_irradiance(hourly_df, selected_date, export_dir, show_plot=True)
+                if fig:
+                    st.pyplot(fig)
+                else:
+                    st.info("No data for this date")
+            
+            with col_g2:
+                st.markdown("#### Temperature vs Time")
+                fig = plot_weather_daily_temperature(hourly_df, selected_date, export_dir, show_plot=True)
+                if fig:
+                    st.pyplot(fig)
+                else:
+                    st.info("No data for this date")
+        
+        elif view_mode == "Monthly Averages":
+            st.markdown("### 📊 Monthly Average Patterns")
+            st.info("These graphs show the **average hourly values** across all days in the selected period.")
+            
+            # Overall averages section
+            st.markdown("#### 📈 Overall Period Averages")
+            col_g1, col_g2 = st.columns(2)
+            
+            with col_g1:
+                st.markdown("**Avg Hourly Irradiance (All Data)**")
+                fig = plot_weather_monthly_avg_irradiance(hourly_df, export_dir, show_plot=True)
+                if fig:
+                    st.pyplot(fig)
+            
+            with col_g2:
+                st.markdown("**Avg Hourly Temperature (All Data)**")
+                fig = plot_weather_monthly_avg_temperature(hourly_df, export_dir, show_plot=True)
+                if fig:
+                    st.pyplot(fig)
+            
+            st.markdown("---")
+            
+            # Per-month selection
+            st.markdown("#### 📅 Per-Month Analysis")
+            st.caption("Select a specific month to see hourly patterns for just that month.")
+            
+            # Get available months from data
+            hourly_df_copy = hourly_df.copy()
+            hourly_df_copy['YearMonth'] = pd.to_datetime(hourly_df_copy['Timestamp']).dt.to_period('M')
+            available_months = sorted(hourly_df_copy['YearMonth'].unique())
+            month_options = [str(m) for m in available_months]
+            
+            if len(month_options) > 1:
+                selected_month = st.selectbox(
+                    "Select Month",
+                    options=month_options,
+                    index=0,
+                    key="weather_month_select"
+                )
+                
+                # Filter data for selected month
+                month_data = hourly_df_copy[hourly_df_copy['YearMonth'].astype(str) == selected_month]
+                
+                if not month_data.empty:
+                    # Calculate hourly averages for this month
+                    month_hourly_avg = month_data.groupby('Hour').agg({
+                        'Irradiance_Wm2': 'mean',
+                        'Temperature_C': 'mean'
+                    }).reset_index()
+                    
+                    col_m1, col_m2 = st.columns(2)
+                    
+                    with col_m1:
+                        st.markdown(f"**Irradiance - {selected_month}**")
+                        fig, ax = plt.subplots(figsize=(8, 4))
+                        ax.plot(month_hourly_avg['Hour'], month_hourly_avg['Irradiance_Wm2'], 
+                               color='#FF9800', linewidth=2, marker='o', markersize=4)
+                        ax.fill_between(month_hourly_avg['Hour'], month_hourly_avg['Irradiance_Wm2'], 
+                                       alpha=0.2, color='#FF9800')
+                        ax.set_xlabel('Hour of Day')
+                        ax.set_ylabel('Irradiance (W/m²)')
+                        ax.set_title(f'Avg Hourly Irradiance - {selected_month}')
+                        ax.set_xlim(0, 23)
+                        ax.grid(True, alpha=0.3)
+                        st.pyplot(fig)
+                        plt.close(fig)
+                    
+                    with col_m2:
+                        st.markdown(f"**Temperature - {selected_month}**")
+                        fig, ax = plt.subplots(figsize=(8, 4))
+                        ax.plot(month_hourly_avg['Hour'], month_hourly_avg['Temperature_C'], 
+                               color='#E91E63', linewidth=2, marker='o', markersize=4)
+                        ax.fill_between(month_hourly_avg['Hour'], month_hourly_avg['Temperature_C'], 
+                                       alpha=0.2, color='#E91E63')
+                        ax.set_xlabel('Hour of Day')
+                        ax.set_ylabel('Temperature (°C)')
+                        ax.set_title(f'Avg Hourly Temperature - {selected_month}')
+                        ax.set_xlim(0, 23)
+                        ax.grid(True, alpha=0.3)
+                        st.pyplot(fig)
+                        plt.close(fig)
+            else:
+                st.info("📅 Select a date range spanning multiple months to compare monthly patterns.")
+            
+            st.markdown("---")
+            st.markdown("#### Daily Summary")
+            fig = plot_weather_daily_summary(daily_df, export_dir, show_plot=True)
+            if fig:
+                st.pyplot(fig)
+            
+            st.markdown("---")
+            st.markdown("#### 📆 Calendar Month Averages")
+            st.caption("Compare seasonal patterns across different months (Jan, Feb, Mar, etc.)")
+            fig = plot_weather_calendar_month_averages(hourly_df, daily_df, export_dir, show_plot=True)
+            if fig:
+                st.pyplot(fig)
+            else:
+                st.info("Select a date range spanning multiple months to see calendar averages.")
+        
+        else:  # Data Tables
+            st.markdown("### 📋 Data Tables")
+            
+            with st.expander("📊 Hourly Data", expanded=True):
+                st.dataframe(hourly_df, use_container_width=True)
+            
+            with st.expander("📅 Daily Data", expanded=True):
+                # Format sunrise/sunset for display
+                display_daily = daily_df.copy()
+                if 'Sunrise' in display_daily.columns:
+                    display_daily['Sunrise'] = display_daily['Sunrise'].dt.strftime('%H:%M')
+                if 'Sunset' in display_daily.columns:
+                    display_daily['Sunset'] = display_daily['Sunset'].dt.strftime('%H:%M')
+                st.dataframe(display_daily, use_container_width=True)
 
 
 if __name__ == "__main__":

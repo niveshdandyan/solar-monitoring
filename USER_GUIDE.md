@@ -165,19 +165,82 @@ The system will display detection results:
 | 🔄 Detected mV, converting to V | Automatic unit conversion applied |
 | 📊 Data frequency: ~X minutes | Data interval detected |
 
-## 14. Integrating Weather Data
-
-If your uploaded data lacks **Irradiance** or **Temperature** readings, or if you want to compare against satellite data, you can fetch historical weather data from Open-Meteo.
-
-1.  **Locate "Weather Data"** in the sidebar (below the Process button).
-2.  **Enter Location**:
-    *   **Option A: Google Maps URL**: Paste a URL (e.g., from your browser address bar) and click **"📍 Parse URL"**.
-    *   **Option B: Lat/Lon**: Manually enter Latitude and Longitude.
-3.  Click **"☁️ Fetch Weather Data"**.
-4.  The system will:
-    *   Retrieve hourly historical data for your data's date range.
-    *   Resample it to match your data frequency (e.g., 10-min intervals).
-    *   Merge it into your analysis (filling gaps or adding new columns).
+## 14. Standalone Weather Analysis
+ 
+ The **Standalone Weather Analysis** tool allows you to explore historical weather data for any location on Earth without needing to upload your own solar data first. This is powerful for:
+ *   **Site Selection**: Analyzing solar potential before installing panels.
+ *   **Comparison**: Benchmarking your system against satellite weather data.
+ *   **Historical Review**: Checking weather conditions for past dates.
+ 
+ ### 14.1 Accessing the Tool
+ 
+ Scroll down to the bottom of the main dashboard to find the **"🌤️ Standalone Weather Analysis"** section. This section is always available, even if you haven't uploaded any CSV files.
+ 
+ ### 14.2 Location Selection
+ 
+ Accurate weather data depends on precise location inputs. You have two methods to define your site:
+ 
+ **Method A: Google Maps URL (Recommended)**
+ 1.  Open Google Maps and find your exact location.
+ 2.  Copy the URL from your browser address bar.
+ 3.  Select **"Google Maps URL"** in the input tool.
+ 4.  Paste the link and click **"📍 Parse URL"**.
+ 5.  The system will extract the exact Latitude and Longitude.
+ 
+ **Method B: Manual Coordinates**
+ 1.  Select **"Coordinates"** in the input tool.
+ 2.  Manually enter the **Latitude** and **Longitude**.
+     *   *Latitude range*: -90 to 90 (North is positive, South is negative).
+     *   *Longitude range*: -180 to 180 (East is positive, West is negative).
+ 
+ ### 14.3 Date Range Selection
+ 
+ Choose the historical period you want to analyze.
+ 
+ *   **Quick Select**: Use the dropdown for one-click presets:
+     *   *Last 7 Days* (Recent weather)
+     *   *Last 30 Days* (Monthly review)
+     *   *Last 3 Months / 6 Months / 1 Year* (Seasonal and annual trends)
+ *   **Custom Range**: Select "Custom Range" to pick specific **Start** and **End** dates from the calendar.
+ 
+ > [!NOTE]
+ > **Data Availability**: The Open-Meteo API provides historical data with a delay of about 1-2 days. You cannot fetch data for "today" or future forecasts in this historical tool.
+ 
+ ### 14.4 Understanding Weather Metrics
+ 
+ Once you click **"☁️ Fetch Weather Data"**, the tool provides detailed atmospheric insights.
+ 
+ #### Solar Irradiance Components
+ Understanding the different types of solar radiation is critical for accurate analysis:
+ 
+ | Component | Symbol | Description | Visual Analogy |
+ |-----------|--------|-------------|----------------|
+ | **Direct Irradiance** | DNI | Sunlight coming straight from the sun without scattering. | The light that casts sharp shadows. If you block the sun with your hand, you block this. |
+ | **Diffuse Irradiance** | DHI | Sunlight scattered by clouds, atmosphere, and dust. | The light on a cloudy day. It comes from the "whole sky" rather than just the sun disk. |
+ | **Global Horizontal Irradiance** | **GHI** | The **total** energy hitting a flat, horizontal surface. | **GHI = Direct + Diffuse**. This is the most important number for standard flat solar panels. |
+ 
+ #### Key Metrics Displayed
+ *   **Avg Irradiance**: Theoretical average GHI during daylight hours.
+ *   **Peak Irradiance**: The highest solar intensity recorded in the period.
+ *   **Total Irradiance**: Total energy potential (kWh/m²) for the period.
+ *   **Daylight Hours**: Calculated time between Sunrise and Sunset.
+ 
+ ### 14.5 Visualization Views
+ 
+ Switch between three different views to analyze the data:
+ 
+ 1.  **Daily Analysis**:
+     *   Detailed 24-hour profile for a single specific date.
+     *   Includes precise **Sunrise** 🌅 and **Sunset** 🌇 times.
+     *   Visualizes how clouds (diffuse light) impacted the day vs. clear sun (direct light).
+ 
+ 2.  **Monthly Averages**:
+     *   Shows the "Typical Day" for the selected period.
+     *   Smoothes out daily weather noise to show seasonal trends in irradiance and temperature.
+ 
+ 3.  **Data Tables**:
+     *   View the raw hourly and daily numbers.
+     *   Useful for exporting or manual checking.
 
 ---
 

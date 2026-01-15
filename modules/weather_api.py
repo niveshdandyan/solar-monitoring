@@ -211,3 +211,90 @@ def merge_weather_with_solar(
         messages['temperature'] = "✅ Filled missing Temperature from weather data"
         
     return merged_df, messages
+
+
+def fetch_standalone_weather_data(
+    lat: float,
+    lon: float,
+    start_date: datetime,
+    end_date: datetime
+) -> Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
+    """
+    Fetch standalone weather data from Open-Meteo API for weather analysis tab.
+    Returns both hourly and daily data including sunrise/sunset.
+    
+    Args:
+        lat: Latitude
+        lon: Longitude
+        start_date: Start datetime
+        end_date: End datetime (inclusive)
+        
+    Returns:
+        Tuple of (hourly_df, daily_df) or (None, None) if failed
+    """
+    try:
+        # Open-Meteo uses YYYY-MM-DD format
+        start_str = start_date.strftime('%Y-%m-%d')
+        end_str = end_date.strftime('%Y-%m-%d')
+        
+        # API URL for historical data
+        url = "https://archive-api.open-meteo.com/v1/archive"
+        
+        params = {
+            "latitude": lat,
+            "longitude": lon,
+            "start_date": start_str,
+            "end_date": end_str,
+            "hourly": "temperature_2m,shortwave_radiation,direct_radiation,diffuse_radiation",
+            "daily": "sunrise,sunset,temperature_2m_max,temperature_2m_min,shortwave_radiation_sum",
+            "timezone": "auto"
+        }
+        
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        # Extract hourly data
+        hourly = data.get('hourly', {})
+        daily = data.get('daily', {})
+        
+        hourly_df = None
+        daily_df = None
+        
+        if hourly and 'time' in hourly:
+            hourly_df = pd.DataFrame({
+                'Timestamp': pd.to_datetime(hourly['time']),
+                'Temperature_C': hourly.get('temperature_2m'),
+                'Irradiance_Wm2': hourly.get('shortwave_radiation'),  # GHI
+                'Direct_Irradiance_Wm2': hourly.get('direct_radiation'),
+                'Diffuse_Irradiance_Wm2': hourly.get('diffuse_radiation')
+            })
+            # Add Date and Hour columns for easier filtering
+            hourly_df['Date'] = hourly_df['Timestamp'].dt.date
+            hourly_df['Hour'] = hourly_df['Timestamp'].dt.hour
+        
+        if daily and 'time' in daily:
+            daily_df = pd.DataFrame({
+                'Date': pd.to_datetime(daily['time']).date,
+                'Sunrise': pd.to_datetime(daily.get('sunrise')),
+                'Sunset': pd.to_datetime(daily.get('sunset')),
+                'Temp_Max_C': daily.get('temperature_2m_max'),
+                'Temp_Min_C': daily.get('temperature_2m_min'),
+                'Total_Irradiance_MJm2': daily.get('shortwave_radiation_sum')
+            })
+            # Convert MJ/m² to kWh/m² (1 MJ = 0.2778 kWh)
+            if 'Total_Irradiance_MJm2' in daily_df.columns:
+                daily_df['Total_Irradiance_kWhm2'] = daily_df['Total_Irradiance_MJm2'] * 0.2778
+            
+            # Calculate daylight hours
+            if 'Sunrise' in daily_df.columns and 'Sunset' in daily_df.columns:
+                daily_df['Daylight_Hours'] = (
+                    daily_df['Sunset'] - daily_df['Sunrise']
+                ).dt.total_seconds() / 3600
+        
+        return hourly_df, daily_df
+        
+    except Exception as e:
+        print(f"Error fetching standalone weather data: {e}")
+        return None, None
