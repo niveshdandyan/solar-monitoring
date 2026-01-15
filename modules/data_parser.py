@@ -241,3 +241,42 @@ def get_available_columns(column_mapping: Dict[str, Optional[str]]) -> Dict[str,
         'has_soc': column_mapping['soc'] is not None,
         'has_timestamp': column_mapping['timestamp'] is not None,
     }
+
+
+def get_extra_columns(df: pd.DataFrame, column_mapping: Dict[str, Optional[str]]) -> list:
+    """
+    Get list of extra columns that are not part of the standard detected columns.
+    Only returns numeric columns that can be plotted.
+    
+    Args:
+        df: The dataframe with all columns
+        column_mapping: Dictionary of detected standard columns
+        
+    Returns:
+        List of extra column names (numeric only)
+    """
+    # Get all detected standard columns (values that are not None)
+    standard_cols = set()
+    for col_type, col_name in column_mapping.items():
+        if col_name is not None:
+            standard_cols.add(col_name)
+    
+    # Also exclude common system columns
+    exclude_patterns = [
+        'parsed_timestamp', 'Timestamp', 'Date', 'Time', 'Hour', 'Month',
+        'Power_W', 'Current_A', 'Voltage_V', 'Irradiance_Wm2', 'Temperature_C', 'SoC_pct'
+    ]
+    
+    extra_cols = []
+    for col in df.columns:
+        # Skip if it's a standard detected column
+        if col in standard_cols:
+            continue
+        # Skip if it matches exclude patterns
+        if col in exclude_patterns:
+            continue
+        # Only include numeric columns
+        if pd.api.types.is_numeric_dtype(df[col]):
+            extra_cols.append(col)
+    
+    return extra_cols

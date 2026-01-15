@@ -15,7 +15,8 @@ from modules.data_parser import (
     parse_data, 
     prepare_analysis_data, 
     detect_all_columns,
-    get_available_columns
+    get_available_columns,
+    get_extra_columns
 )
 from modules.calculations import (
     calculate_power,
@@ -478,7 +479,7 @@ def display_analysis_results(vmpp: float, impp: float):
     st.markdown("---")
     
     # Tabs for different visualizations
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
         "📈 Daily Graphs", 
         "📊 Monthly Graphs",
         "📅 Calendar View",
@@ -487,7 +488,8 @@ def display_analysis_results(vmpp: float, impp: float):
         "🌡️ Temperature Effects",
         "📋 Data Quality",
         "⚠️ Power Anomalies",
-        "💾 Export All"
+        "� Custom Metrics",
+        "�💾 Export All"
     ])
     
     with tab1:
@@ -515,6 +517,9 @@ def display_analysis_results(vmpp: float, impp: float):
         display_power_anomalies(analysis_df, EXPORT_DIR)
     
     with tab9:
+        display_custom_metrics(analysis_df, st.session_state.column_mapping, EXPORT_DIR)
+    
+    with tab10:
         display_export_section(analysis_df, daily_metrics, monthly_metrics, EXPORT_DIR)
 
 
@@ -1574,6 +1579,183 @@ def display_power_anomalies(analysis_df: pd.DataFrame, export_dir: str):
             file_name="power_anomalies.csv",
             mime="text/csv"
         )
+
+
+def display_custom_metrics(analysis_df: pd.DataFrame, column_mapping: dict, export_dir: str):
+    """Display analysis for custom/extra columns in the user's data."""
+    
+    st.subheader("📈 Custom Metrics Analysis")
+    st.info("""
+    Analyze any **extra columns** in your data that aren't part of the standard set 
+    (voltage, current, irradiance, temperature, SoC).
+    """)
+    
+    # Get extra columns
+    extra_cols = get_extra_columns(analysis_df, column_mapping)
+    
+    if len(extra_cols) == 0:
+        st.warning("⚠️ No extra numeric columns found in your data.")
+        st.markdown("""
+        **Standard columns detected:**
+        - Timestamp, Voltage, Current, Irradiance, Temperature, SoC, Power
+        
+        If you have additional metrics you'd like to analyze, ensure they are:
+        1. Numeric values (not text)
+        2. Not matching standard column patterns
+        """)
+        return
+    
+    st.success(f"✅ Found **{len(extra_cols)}** extra column(s) available for analysis.")
+    
+    # Column selection
+    selected_col = st.selectbox(
+        "Select Column to Analyze",
+        options=extra_cols,
+        key="custom_metric_select"
+    )
+    
+    if selected_col is None:
+        return
+    
+    # Get column data
+    col_data = analysis_df[selected_col].dropna()
+    
+    if len(col_data) == 0:
+        st.warning(f"⚠️ No valid data in column '{selected_col}'")
+        return
+    
+    st.markdown("---")
+    
+    # Statistics
+    st.markdown("### 📊 Statistics")
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Min", f"{col_data.min():.2f}")
+    with col2:
+        st.metric("Max", f"{col_data.max():.2f}")
+    with col3:
+        st.metric("Mean", f"{col_data.mean():.2f}")
+    with col4:
+        st.metric("Std Dev", f"{col_data.std():.2f}")
+    
+    st.markdown("---")
+    
+    # Visualizations
+    st.markdown("### 📈 Visualizations")
+    
+    # Check what time periods are available
+    has_hour = 'Hour' in analysis_df.columns
+    has_date = 'Date' in analysis_df.columns
+    has_month = 'Month' in analysis_df.columns
+    
+    viz_tabs = ["Daily Hourly Pattern"]
+    if has_date:
+        viz_tabs.append("Daily Trend")
+    if has_month:
+        viz_tabs.append("Monthly Averages")
+    
+    tabs = st.tabs(viz_tabs)
+    
+    tab_idx = 0
+    
+    # Daily Hourly Pattern (0-23 hours)
+    with tabs[tab_idx]:
+        st.markdown(f"#### Hourly Pattern of {selected_col}")
+        if has_hour:
+            hourly_avg = analysis_df.groupby('Hour')[selected_col].mean().reset_index()
+            
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.plot(hourly_avg['Hour'], hourly_avg[selected_col], 
+                   color='#3498DB', linewidth=2, marker='o', markersize=5)
+            ax.fill_between(hourly_avg['Hour'], hourly_avg[selected_col], 
+                           alpha=0.2, color='#3498DB')
+            ax.set_xlabel('Hour of Day', fontsize=11)
+            ax.set_ylabel(selected_col, fontsize=11)
+            ax.set_title(f'Average {selected_col} by Hour', fontsize=13, fontweight='bold')
+            ax.set_xlim(0, 23)
+            ax.set_xticks(range(0, 24, 2))
+            ax.grid(True, alpha=0.3)
+            st.pyplot(fig)
+            plt.close(fig)
+        else:
+            st.info("Hour data not available for hourly pattern analysis.")
+        tab_idx += 1
+    
+    # Daily Trend
+    if has_date and tab_idx < len(tabs):
+        with tabs[tab_idx]:
+            st.markdown(f"#### Daily Average of {selected_col}")
+            daily_avg = analysis_df.groupby('Date')[selected_col].mean().reset_index()
+            
+            fig, ax = plt.subplots(figsize=(12, 5))
+            ax.plot(range(len(daily_avg)), daily_avg[selected_col], 
+                   color='#2ECC71', linewidth=1.5, marker='o', markersize=3)
+            ax.fill_between(range(len(daily_avg)), daily_avg[selected_col], 
+                           alpha=0.2, color='#2ECC71')
+            ax.set_xlabel('Date', fontsize=11)
+            ax.set_ylabel(selected_col, fontsize=11)
+            ax.set_title(f'Daily Average {selected_col}', fontsize=13, fontweight='bold')
+            
+            # X-axis labels
+            if len(daily_avg) <= 15:
+                ax.set_xticks(range(len(daily_avg)))
+                ax.set_xticklabels([str(d) for d in daily_avg['Date']], rotation=45, ha='right')
+            else:
+                step = max(1, len(daily_avg) // 10)
+                ax.set_xticks(range(0, len(daily_avg), step))
+                ax.set_xticklabels([str(d) for d in daily_avg['Date'].iloc[::step]], rotation=45, ha='right')
+            
+            ax.grid(True, alpha=0.3)
+            plt.tight_layout()
+            st.pyplot(fig)
+            plt.close(fig)
+            tab_idx += 1
+    
+    # Monthly Averages
+    if has_month and tab_idx < len(tabs):
+        with tabs[tab_idx]:
+            st.markdown(f"#### Monthly Average of {selected_col}")
+            monthly_avg = analysis_df.groupby('Month')[selected_col].mean().reset_index()
+            monthly_avg['Month_str'] = monthly_avg['Month'].astype(str)
+            
+            fig, ax = plt.subplots(figsize=(10, 5))
+            bars = ax.bar(range(len(monthly_avg)), monthly_avg[selected_col], 
+                         color='#9B59B6', alpha=0.8, edgecolor='#7D3C98')
+            ax.set_xlabel('Month', fontsize=11)
+            ax.set_ylabel(selected_col, fontsize=11)
+            ax.set_title(f'Monthly Average {selected_col}', fontsize=13, fontweight='bold')
+            ax.set_xticks(range(len(monthly_avg)))
+            ax.set_xticklabels(monthly_avg['Month_str'], rotation=45, ha='right')
+            ax.grid(True, alpha=0.3, axis='y')
+            
+            # Add value labels
+            for bar in bars:
+                height = bar.get_height()
+                ax.annotate(f'{height:.1f}',
+                           xy=(bar.get_x() + bar.get_width() / 2, height),
+                           xytext=(0, 3),
+                           textcoords="offset points",
+                           ha='center', va='bottom', fontsize=9)
+            
+            plt.tight_layout()
+            st.pyplot(fig)
+            plt.close(fig)
+    
+    st.markdown("---")
+    
+    # Data Table
+    st.markdown("### 📋 Raw Data")
+    with st.expander(f"View {selected_col} Data", expanded=False):
+        display_cols = ['Timestamp', selected_col]
+        if 'Date' in analysis_df.columns:
+            display_cols.insert(1, 'Date')
+        if 'Hour' in analysis_df.columns:
+            display_cols.insert(2, 'Hour')
+        
+        available_display_cols = [c for c in display_cols if c in analysis_df.columns]
+        st.dataframe(analysis_df[available_display_cols].dropna(subset=[selected_col]), 
+                    use_container_width=True, height=400)
 
 
 def display_weather_analysis(export_dir: str):

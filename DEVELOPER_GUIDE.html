@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌞 Solar Panel Monitoring System - Developer Guide</title>
+    <style>
+        :root {
+            --primary: #2C3E50;
+            --secondary: #3498DB;
+            --accent: #E74C3C;
+            --success: #27AE60;
+            --warning: #F39C12;
+            --bg: #ECF0F1;
+            --code-bg: #2D2D2D;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.7;
+            color: #333;
+            background: var(--bg);
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary), #1a252f);
+            color: white;
+            padding: 40px 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+        }
+
+        header .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        header .version {
+            margin-top: 15px;
+            padding: 5px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            font-size: 0.9em;
+            display: inline-block;
+        }
+
+        nav.toc {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        nav.toc h2 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--secondary);
+            padding-bottom: 10px;
+        }
+
+        nav.toc ol {
+            columns: 2;
+            padding-left: 25px;
+        }
+
+        nav.toc li {
+            margin-bottom: 8px;
+        }
+
+        nav.toc a {
+            color: var(--secondary);
+            text-decoration: none;
+        }
+
+        nav.toc a:hover {
+            text-decoration: underline;
+        }
+
+        section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            color: var(--primary);
+            font-size: 1.6em;
+            margin-bottom: 20px;
+            border-bottom: 3px solid var(--secondary);
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            color: var(--secondary);
+            font-size: 1.3em;
+            margin: 25px 0 15px;
+        }
+
+        h4 {
+            color: var(--primary);
+            font-size: 1.1em;
+            margin: 20px 0 10px;
+        }
+
+        p {
+            margin-bottom: 15px;
+        }
+
+        pre {
+            background: var(--code-bg);
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.9em;
+            color: var(--accent);
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        th,
+        td {
+            padding: 12px 15px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background: var(--primary);
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            border-left: 4px solid var(--warning);
+        }
+
+        .alert-tip {
+            background: #d4edda;
+            border-left: 4px solid var(--success);
+        }
+
+        .file-path {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 0.95em;
+            display: inline-block;
+            margin: 10px 0;
+        }
+
+        ul,
+        ol {
+            padding-left: 25px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .diagram {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: center;
+            font-family: monospace;
+        }
+
+        .function-sig {
+            background: #1e1e1e;
+            color: #dcdcdc;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-family: 'Fira Code', monospace;
+        }
+
+        .function-sig .keyword {
+            color: #569cd6;
+        }
+
+        .function-sig .func-name {
+            color: #dcdcaa;
+        }
+
+        .function-sig .param {
+            color: #9cdcfe;
+        }
+
+        .function-sig .type {
+            color: #4ec9b0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🔧 Developer Guide</h1>
+            <p class="subtitle">Solar Panel Monitoring System - Technical Documentation</p>
+            <span class="version">Version 1.0 | For Developers & Customizers</span>
+        </header>
+
+        <nav class="toc">
+            <h2>📋 Table of Contents</h2>
+            <ol>
+                <li><a href="#overview">System Overview</a></li>
+                <li><a href="#architecture">Architecture</a></li>
+                <li><a href="#project-structure">Project Structure</a></li>
+                <li><a href="#modules">Module Reference</a></li>
+                <li><a href="#data-flow">Data Flow</a></li>
+                <li><a href="#column-detection">Column Detection System</a></li>
+                <li><a href="#calculations">Calculations Module</a></li>
+                <li><a href="#visualizations">Visualizations Module</a></li>
+                <li><a href="#data-quality">Data Quality Module</a></li>
+                <li><a href="#weather-api">Weather API Module</a></li>
+                <li><a href="#customization">Customization Guide</a></li>
+                <li><a href="#adding-tabs">Adding New Tabs</a></li>
+                <li><a href="#adding-columns">Adding New Column Types</a></li>
+                <li><a href="#adding-graphs">Adding New Graphs</a></li>
+                <li><a href="#deployment">Deployment</a></li>
+            </ol>
+        </nav>
+
+        <!-- Section 1: Overview -->
+        <section id="overview">
+            <h2>1. System Overview</h2>
+            <p>The Solar Panel Monitoring System is a <strong>Streamlit-based web application</strong> for analyzing
+                solar panel performance data. It provides:</p>
+            <ul>
+                <li>CSV data parsing with auto-detection of column types</li>
+                <li>Power, Performance Ratio (PR), and Specific Yield calculations</li>
+                <li>Daily, monthly, and custom date range visualizations</li>
+                <li>Data quality analysis (completeness, duplicates, range validation)</li>
+                <li>Weather data integration via Open-Meteo API</li>
+                <li>Export functionality for graphs and data</li>
+            </ul>
+
+            <h3>Tech Stack</h3>
+            <table>
+                <tr>
+                    <th>Component</th>
+                    <th>Technology</th>
+                    <th>Purpose</th>
+                </tr>
+                <tr>
+                    <td>Frontend/Backend</td>
+                    <td>Streamlit</td>
+                    <td>Web UI and server</td>
+                </tr>
+                <tr>
+                    <td>Data Processing</td>
+                    <td>Pandas, NumPy</td>
+                    <td>DataFrame operations</td>
+                </tr>
+                <tr>
+                    <td>Visualization</td>
+                    <td>Matplotlib, Seaborn</td>
+                    <td>Charts and graphs</td>
+                </tr>
+                <tr>
+                    <td>Weather API</td>
+                    <td>Open-Meteo</td>
+                    <td>Historical weather data</td>
+                </tr>
+            </table>
+        </section>
+
+        <!-- Section 2: Architecture -->
+        <section id="architecture">
+            <h2>2. Architecture</h2>
+
+            <div class="diagram">
+                <pre>
+┌─────────────────────────────────────────────────────────────────────┐
+│                         USER INTERFACE (Streamlit)                   │
+│                              app.py                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
+│  │   Sidebar   │  │    Tabs     │  │  Metrics    │  │   Graphs    │ │
+│  │  (Config)   │  │ (10 views)  │  │  (Cards)    │  │  (Charts)   │ │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘ │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+           ┌──────────────────┼───────────────────────┐
+           ▼                  ▼                       ▼
+┌─────────────────┐  ┌─────────────────┐    ┌─────────────────┐
+│  data_parser.py │  │ calculations.py │    │ visualizations  │
+│  ─────────────  │  │  ─────────────  │    │      .py        │
+│  • parse_data() │  │  • power calc   │    │  ─────────────  │
+│  • detect cols  │  │  • PR calc      │    │  • 40+ plotting │
+│  • prepare data │  │  • yield calc   │    │    functions    │
+└─────────────────┘  │  • daily/monthly│    └─────────────────┘
+                     │    metrics      │
+                     └─────────────────┘
+                              │
+           ┌──────────────────┼───────────────────────┐
+           ▼                  ▼                       ▼
+┌─────────────────┐  ┌─────────────────┐    ┌─────────────────┐
+│ data_quality.py │  │  weather_api.py │    │    export.py    │
+│  ─────────────  │  │  ─────────────  │    │  ─────────────  │
+│  • completeness │  │  • Open-Meteo   │    │  • ZIP creation │
+│  • validation   │  │  • coord parse  │    │  • CSV export   │
+│  • duplicates   │  │  • data merge   │    └─────────────────┘
+└─────────────────┘  └─────────────────┘
+</pre>
+            </div>
+        </section>
+
+        <!-- Section 3: Project Structure -->
+        <section id="project-structure">
+            <h2>3. Project Structure</h2>
+
+            <pre>
+solar-monitoring/
+├── app.py                      # Main Streamlit application (~2100 lines)
+├── requirements.txt            # Python dependencies
+├── generate_sample_data.py     # Sample data generator
+│
+├── modules/                    # Core functionality
+│   ├── __init__.py
+│   ├── data_parser.py          # CSV parsing & column detection
+│   ├── calculations.py         # Power, PR, yield calculations
+│   ├── data_quality.py         # Validation & completeness checks
+│   ├── visualizations.py       # Graph generation (~2200 lines)
+│   ├── weather_api.py          # Open-Meteo API integration
+│   ├── weather_visualizations.py # Weather-specific graphs
+│   └── export.py               # File export utilities
+│
+├── sample_data/                # Sample CSV files
+│   └── generated_30day_data.csv
+│
+├── exports/                    # Generated files (gitignored)
+│
+├── docs/                       # Documentation assets
+│   └── images/
+│
+├── USER_GUIDE.html             # End-user documentation
+├── USER_GUIDE.md               # Markdown version
+└── README.md                   # Project overview
+            </pre>
+        </section>
+
+        <!-- Section 4: Module Reference -->
+        <section id="modules">
+            <h2>4. Module Reference</h2>
+
+            <table>
+                <tr>
+                    <th>Module</th>
+                    <th>Lines</th>
+                    <th>Functions</th>
+                    <th>Purpose</th>
+                </tr>
+                <tr>
+                    <td><code>data_parser.py</code></td>
+                    <td>~285</td>
+                    <td>8</td>
+                    <td>CSV parsing, column auto-detection, data preparation</td>
+                </tr>
+                <tr>
+                    <td><code>calculations.py</code></td>
+                    <td>~430</td>
+                    <td>13</td>
+                    <td>Power, PR, yield, metrics, operating hours</td>
+                </tr>
+                <tr>
+                    <td><code>data_quality.py</code></td>
+                    <td>~425</td>
+                    <td>7</td>
+                    <td>Completeness, validation, gap filling, duplicates</td>
+                </tr>
+                <tr>
+                    <td><code>visualizations.py</code></td>
+                    <td>~2200</td>
+                    <td>40+</td>
+                    <td>All chart generation for solar data</td>
+                </tr>
+                <tr>
+                    <td><code>weather_api.py</code></td>
+                    <td>~300</td>
+                    <td>5</td>
+                    <td>Open-Meteo API, coordinate parsing</td>
+                </tr>
+                <tr>
+                    <td><code>weather_visualizations.py</code></td>
+                    <td>~450</td>
+                    <td>7</td>
+                    <td>Weather-specific charts</td>
+                </tr>
+                <tr>
+                    <td><code>export.py</code></td>
+                    <td>~120</td>
+                    <td>5</td>
+                    <td>ZIP and CSV export utilities</td>
+                </tr>
+            </table>
+        </section>
+
+        <!-- Section 5: Data Flow -->
+        <section id="data-flow">
+            <h2>5. Data Flow</h2>
+
+            <h3>5.1 CSV Upload to Display</h3>
+            <ol>
+                <li><strong>User uploads CSV</strong> via <code>st.file_uploader()</code> or pastes text</li>
+                <li><strong>parse_data()</strong> reads CSV, auto-detects columns</li>
+                <li><strong>prepare_analysis_data()</strong> standardizes column names, adds derived columns</li>
+                <li><strong>calculate_daily_metrics()</strong> aggregates by date</li>
+                <li><strong>calculate_monthly_metrics()</strong> aggregates by month</li>
+                <li><strong>Data stored in <code>st.session_state</code></strong> for persistence</li>
+                <li><strong>display_*() functions</strong> render tabs with visualizations</li>
+            </ol>
+
+            <h3>5.2 Session State Keys</h3>
+            <pre>
+st.session_state.data_loaded       # bool: True if data is loaded
+st.session_state.analysis_df       # DataFrame: Processed data
+st.session_state.column_mapping    # dict: Original → Standardized column names
+st.session_state.daily_metrics     # DataFrame: Daily aggregates
+st.session_state.monthly_metrics   # DataFrame: Monthly aggregates
+st.session_state.nominal_power     # float: System kWp
+st.session_state.temp_coeff        # float: Temperature coefficient
+st.session_state.soc_threshold     # float: SoC threshold for PR
+st.session_state.view_mode         # str: 'data_analysis' or 'weather_analysis'
+            </pre>
+        </section>
+
+        <!-- Section 6: Column Detection -->
+        <section id="column-detection">
+            <h2>6. Column Detection System</h2>
+
+            <p>The system uses regex patterns to automatically detect column types from uploaded CSV files.</p>
+
+            <div class="file-path">modules/data_parser.py</div>
+
+            <h3>6.1 Pattern Definitions</h3>
+            <pre>
+COLUMN_PATTERNS = {
+    'timestamp': [
+        r'^timestamp$', r'^time$', r'^date$', r'^datetime$', 
+        r'date_time', r'^dt$', r'reading_time', r'log_time'
+    ],
+    'current': [
+        r'\bcurrent\b', r'^i$', r'dc[_\s]?current', r'^amps$',
+        r'current.*\(a\)', r'\(a\)$'
+    ],
+    'voltage': [
+        r'\bvoltage\b', r'^v$', r'dc[_\s]?voltage', r'^volts$',
+        r'voltage.*\(v\)', r'\(v\)$', r'\(mv\)$'
+    ],
+    'irradiance': [
+        r'irradiance', r'\bghi\b', r'\bpoa\b', r'solar_radiation',
+        r'w/m2', r'w/m²', r'radiation'
+    ],
+    'temperature': [
+        r'temperature', r'\btemp\b', r'cell[_\s]?temp', 
+        r't[_\s]?cell', r'\(c\)$', r'°c'
+    ],
+    'soc': [
+        r'\bsoc\b', r'battery[_\s]?soc', r'state[_\s]?of[_\s]?charge',
+        r'battery.*%', r'charge[_\s]?state'
+    ]
+}
+            </pre>
+
+            <h3>6.2 Adding New Column Types</h3>
+            <p>To add a new column type (e.g., "humidity"):</p>
+            <pre>
+# 1. Add to COLUMN_PATTERNS in data_parser.py
+COLUMN_PATTERNS['humidity'] = [
+    r'\bhumidity\b', r'rh', r'relative[_\s]?humidity', r'%rh'
+]
+
+# 2. Update detect_all_columns() to include it
+# (already loops through all keys in COLUMN_PATTERNS)
+
+# 3. Update prepare_analysis_data() to handle standardization
+if column_mapping['humidity']:
+    result_df['Humidity_pct'] = df[column_mapping['humidity']]
+            </pre>
+        </section>
+
+        <!-- Section 7: Calculations Module -->
+        <section id="calculations">
+            <h2>7. Calculations Module</h2>
+
+            <div class="file-path">modules/calculations.py</div>
+
+            <h3>7.1 Core Functions</h3>
+
+            <h4>calculate_power(df)</h4>
+            <p>Calculates measured power from current and voltage.</p>
+            <pre>
+# Formula: P = I × V (Watts)
+df['Power_W'] = df['Current_A'] * df['Voltage_V']
+            </pre>
+
+            <h4>calculate_expected_power(df, nominal_power_kw, temp_coefficient)</h4>
+            <p>Calculates theoretical expected power based on irradiance and temperature.</p>
+            <pre>
+# Formula: P_expected = P_stc × (G / 1000) × [1 + γ × (T_cell - 25)]
+# Where:
+#   P_stc = Nominal power at STC (kW)
+#   G = Irradiance (W/m²)
+#   γ = Temperature coefficient (e.g., -0.004 for -0.4%/°C)
+#   T_cell = Cell temperature (°C)
+            </pre>
+
+            <h4>calculate_performance_ratio(df, nominal_power_kw, temp_coefficient)</h4>
+            <p>Calculates Performance Ratio (PR) with optional SoC filtering.</p>
+            <pre>
+# Formula: PR = (Actual Energy / Expected Energy) × 100%
+# 
+# Returns dict with:
+#   - 'pr': Performance Ratio percentage
+#   - 'actual_energy_kwh': Total measured energy
+#   - 'expected_energy_kwh': Total theoretical energy
+#   - 'points_used': Number of data points
+#   - 'points_excluded': Points excluded (high SoC)
+            </pre>
+
+            <h4>calculate_daily_metrics(df, nominal_power_kw, temp_coefficient)</h4>
+            <p>Aggregates data by date. Returns DataFrame with columns:</p>
+            <table>
+                <tr>
+                    <th>Column</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td>Date</td>
+                    <td>Date of readings</td>
+                </tr>
+                <tr>
+                    <td>Actual_Energy_kWh</td>
+                    <td>Total energy generated</td>
+                </tr>
+                <tr>
+                    <td>Expected_Energy_kWh</td>
+                    <td>Theoretical energy</td>
+                </tr>
+                <tr>
+                    <td>Performance_Ratio</td>
+                    <td>Daily PR (%)</td>
+                </tr>
+                <tr>
+                    <td>Avg_Irradiance</td>
+                    <td>Average irradiance</td>
+                </tr>
+                <tr>
+                    <td>Avg_Temperature</td>
+                    <td>Average temperature</td>
+                </tr>
+                <tr>
+                    <td>Operating_Hours</td>
+                    <td>Hours with power > 0</td>
+                </tr>
+            </table>
+
+            <h4>calculate_monthly_metrics(df, nominal_power_kw, temp_coefficient)</h4>
+            <p>Aggregates data by month. Similar structure to daily metrics plus:</p>
+            <ul>
+                <li><code>Days_With_Data</code>: Number of days with readings</li>
+                <li><code>Avg_Daily_Energy_kWh</code>: Average daily energy for the month</li>
+            </ul>
+        </section>
+
+        <!-- Section 8: Visualizations Module -->
+        <section id="visualizations">
+            <h2>8. Visualizations Module</h2>
+
+            <div class="file-path">modules/visualizations.py</div>
+
+            <p>This is the largest module (~2200 lines) containing 40+ plotting functions.</p>
+
+            <h3>8.1 Function Naming Convention</h3>
+            <table>
+                <tr>
+                    <th>Prefix</th>
+                    <th>Purpose</th>
+                    <th>Example</th>
+                </tr>
+                <tr>
+                    <td><code>plot_daily_*</code></td>
+                    <td>Single day graphs</td>
+                    <td><code>plot_daily_power_irradiance()</code></td>
+                </tr>
+                <tr>
+                    <td><code>plot_monthly_*</code></td>
+                    <td>Monthly aggregates</td>
+                    <td><code>plot_monthly_energy_bar()</code></td>
+                </tr>
+                <tr>
+                    <td><code>plot_custom_*</code></td>
+                    <td>Custom date ranges</td>
+                    <td><code>plot_custom_range_power()</code></td>
+                </tr>
+                <tr>
+                    <td><code>generate_*</code></td>
+                    <td>Batch generation</td>
+                    <td><code>generate_all_daily_graphs()</code></td>
+                </tr>
+            </table>
+
+            <h3>8.2 Standard Function Signature</h3>
+            <pre>
+def plot_daily_power_irradiance(
+    df: pd.DataFrame,
+    date: str,
+    output_dir: str,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """
+    Plot power and irradiance for a specific date.
+    
+    Args:
+        df: DataFrame with 'Hour', 'Power_W', 'Irradiance_Wm2'
+        date: Date string (YYYY-MM-DD)
+        output_dir: Directory to save PNG
+        show_plot: If True, return figure for Streamlit display
+        
+    Returns:
+        Figure object if show_plot=True, else None
+    """
+            </pre>
+
+            <h3>8.3 Adding a New Graph</h3>
+            <pre>
+# 1. Add function to visualizations.py
+def plot_custom_my_metric(
+    df: pd.DataFrame,
+    output_dir: str,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    
+    fig, ax = plt.subplots(figsize=(10, 5))
+    
+    # Your plotting logic here
+    ax.plot(df['Hour'], df['MyMetric'], color='#3498DB')
+    ax.set_xlabel('Hour')
+    ax.set_ylabel('My Metric')
+    ax.set_title('My Custom Graph')
+    ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    
+    if output_dir:
+        filepath = os.path.join(output_dir, "my_metric.png")
+        fig.savefig(filepath, dpi=150, bbox_inches='tight')
+    
+    if show_plot:
+        return fig
+    
+    plt.close(fig)
+    return None
+
+
+# 2. Import in app.py
+from modules.visualizations import plot_custom_my_metric
+
+# 3. Call in appropriate display function
+fig = plot_custom_my_metric(analysis_df, EXPORT_DIR, show_plot=True)
+if fig:
+    st.pyplot(fig)
+            </pre>
+        </section>
+
+        <!-- Section 9: Data Quality Module -->
+        <section id="data-quality">
+            <h2>9. Data Quality Module</h2>
+
+            <div class="file-path">modules/data_quality.py</div>
+
+            <h3>9.1 Key Functions</h3>
+
+            <h4>check_data_completeness()</h4>
+            <pre>
+check_data_completeness(
+    df: pd.DataFrame,
+    expected_interval_minutes: Optional[int] = None,  # Auto-detected if None
+    min_completeness_pct: float = 80.0,
+    daytime_only: bool = True,
+    daytime_start_hour: int = 6,
+    daytime_end_hour: int = 18
+) -> Dict
+            </pre>
+            <p><strong>Returns:</strong></p>
+            <ul>
+                <li><code>completeness_pct</code>: Percentage of expected readings present</li>
+                <li><code>missing_periods</code>: List of gaps with start/end times</li>
+                <li><code>detected_interval</code>: Auto-detected data frequency</li>
+            </ul>
+
+            <h4>validate_data_ranges()</h4>
+            <pre>
+validate_data_ranges(
+    df: pd.DataFrame,
+    voltage_range: Tuple[float, float] = (0, 60),
+    current_range: Tuple[float, float] = (0, 15),
+    irradiance_range: Tuple[float, float] = (0, 1400),
+    temperature_range: Tuple[float, float] = (-10, 80),
+    soc_range: Tuple[float, float] = (0, 100)
+) -> Dict
+            </pre>
+            <p>Checks if values fall within physically realistic ranges.</p>
+
+            <h4>get_data_quality_report()</h4>
+            <p>Combines all checks into a comprehensive report dictionary.</p>
+        </section>
+
+        <!-- Section 10: Weather API -->
+        <section id="weather-api">
+            <h2>10. Weather API Module</h2>
+
+            <div class="file-path">modules/weather_api.py</div>
+
+            <h3>10.1 Open-Meteo Integration</h3>
+            <p>Uses the free Open-Meteo Historical Weather API. No API key required.</p>
+
+            <pre>
+# API Endpoint
+BASE_URL = "https://archive-api.open-meteo.com/v1/archive"
+
+# Parameters requested
+params = {
+    "latitude": lat,
+    "longitude": lon,
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-31",
+    "hourly": "temperature_2m,shortwave_radiation,direct_radiation,diffuse_radiation",
+    "daily": "sunrise,sunset,temperature_2m_max,temperature_2m_min,shortwave_radiation_sum",
+    "timezone": "auto"
+}
+            </pre>
+
+            <h3>10.2 Data Returned</h3>
+            <table>
+                <tr>
+                    <th>Hourly</th>
+                    <th>Daily</th>
+                </tr>
+                <tr>
+                    <td>Temperature_C</td>
+                    <td>Sunrise/Sunset</td>
+                </tr>
+                <tr>
+                    <td>Irradiance_Wm2 (GHI)</td>
+                    <td>Temp_Max_C / Temp_Min_C</td>
+                </tr>
+                <tr>
+                    <td>Direct_Irradiance_Wm2</td>
+                    <td>Total_Irradiance_kWhm2</td>
+                </tr>
+                <tr>
+                    <td>Diffuse_Irradiance_Wm2</td>
+                    <td>Daylight_Hours</td>
+                </tr>
+            </table>
+
+            <h3>10.3 Coordinate Parsing</h3>
+            <pre>
+extract_coordinates_from_url(url: str) -> Tuple[Optional[float], Optional[float]]
+
+# Supports:
+# - Google Maps URLs: @22.2793566,114.1628124,17z
+# - Direct coordinates in URL params
+            </pre>
+        </section>
+
+        <!-- Section 11: Customization Guide -->
+        <section id="customization">
+            <h2>11. Customization Guide</h2>
+
+            <h3>11.1 Changing Default Values</h3>
+            <p>Edit these values in <code>app.py</code>:</p>
+            <pre>
+# Sidebar defaults (in main() function)
+nominal_power = st.number_input(
+    "Nominal Power (kWp)",
+    min_value=0.1,
+    max_value=100.0,
+    value=0.3,          # <-- Change default
+    step=0.1
+)
+
+temp_coeff = st.number_input(
+    "Temperature Coefficient (%/°C)",
+    min_value=-1.0,
+    max_value=0.0,
+    value=-0.4,         # <-- Change default
+    step=0.01
+)
+            </pre>
+
+            <h3>11.2 Changing Colors</h3>
+            <p>Global color scheme in <code>visualizations.py</code>:</p>
+            <pre>
+# Common colors used throughout
+COLORS = {
+    'power': '#FF6B6B',      # Red
+    'irradiance': '#FFD93D', # Yellow/Orange
+    'temperature': '#6BCB77', # Green
+    'voltage': '#4D96FF',    # Blue
+    'current': '#9B59B6',    # Purple
+    'soc': '#1ABC9C',        # Teal
+    'pr': '#3498DB',         # Light Blue
+}
+            </pre>
+
+            <h3>11.3 Changing Export Settings</h3>
+            <pre>
+# In visualizations.py, change DPI for higher quality exports
+fig.savefig(filepath, dpi=150, bbox_inches='tight')
+#                     ^^^^^^^^ Increase to 300 for print quality
+            </pre>
+        </section>
+
+        <!-- Section 12: Adding New Tabs -->
+        <section id="adding-tabs">
+            <h2>12. Adding New Tabs</h2>
+
+            <h3>Step-by-Step Guide</h3>
+
+            <h4>Step 1: Update Tab List in app.py</h4>
+            <pre>
+# Find the st.tabs() call in display_analysis_results()
+tab1, tab2, tab3, ..., tabN, tabNEW = st.tabs([
+    "📈 Daily Graphs",
+    "📊 Monthly Graphs",
+    ...
+    "📈 Custom Metrics",
+    "🆕 My New Tab",      # <-- Add your tab
+    "💾 Export All"
+])
+            </pre>
+
+            <h4>Step 2: Create Display Function</h4>
+            <pre>
+def display_my_new_tab(analysis_df: pd.DataFrame, export_dir: str):
+    """Display my new feature."""
+    
+    st.subheader("🆕 My New Feature")
+    st.info("Description of what this tab does.")
+    
+    # Your UI components here
+    selected_option = st.selectbox("Choose an option", ["A", "B", "C"])
+    
+    # Your visualizations
+    fig, ax = plt.subplots(figsize=(10, 5))
+    # ... plotting code ...
+    st.pyplot(fig)
+    plt.close(fig)
+    
+    # Data table
+    with st.expander("View Data"):
+        st.dataframe(analysis_df.head(100))
+            </pre>
+
+            <h4>Step 3: Call Display Function</h4>
+            <pre>
+with tabNEW:
+    display_my_new_tab(analysis_df, EXPORT_DIR)
+            </pre>
+        </section>
+
+        <!-- Section 13: Adding Column Types -->
+        <section id="adding-columns">
+            <h2>13. Adding New Column Types</h2>
+
+            <h4>Step 1: Add Pattern to data_parser.py</h4>
+            <pre>
+COLUMN_PATTERNS['wind_speed'] = [
+    r'\bwind\b', r'wind[_\s]?speed', r'ws', r'm/s'
+]
+            </pre>
+
+            <h4>Step 2: Update prepare_analysis_data()</h4>
+            <pre>
+# In prepare_analysis_data() function
+if column_mapping.get('wind_speed'):
+    result_df['Wind_Speed_ms'] = df[column_mapping['wind_speed']]
+            </pre>
+
+            <h4>Step 3: Update get_available_columns()</h4>
+            <pre>
+return {
+    ...
+    'has_wind_speed': column_mapping.get('wind_speed') is not None,
+}
+            </pre>
+        </section>
+
+        <!-- Section 14: Adding Graphs -->
+        <section id="adding-graphs">
+            <h2>14. Adding New Graphs</h2>
+
+            <h3>Template for New Visualization</h3>
+            <pre>
+def plot_my_custom_chart(
+    df: pd.DataFrame,
+    date: str = None,
+    output_dir: str = None,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """
+    Create a custom chart.
+    
+    Args:
+        df: Input DataFrame
+        date: Optional date filter (YYYY-MM-DD)
+        output_dir: Directory to save PNG
+        show_plot: Return figure for Streamlit
+        
+    Returns:
+        Figure if show_plot=True
+    """
+    if df is None or df.empty:
+        return None
+    
+    # Filter by date if provided
+    if date:
+        plot_df = df[df['Date'] == date].copy()
+    else:
+        plot_df = df.copy()
+    
+    if plot_df.empty:
+        return None
+    
+    # Create figure
+    fig, ax = plt.subplots(figsize=(10, 5))
+    
+    # Plot data
+    ax.plot(
+        plot_df['X_Column'],
+        plot_df['Y_Column'],
+        color='#3498DB',
+        linewidth=2,
+        marker='o',
+        markersize=4,
+        label='My Data'
+    )
+    
+    # Styling
+    ax.set_xlabel('X Label', fontsize=11)
+    ax.set_ylabel('Y Label', fontsize=11)
+    ax.set_title('My Chart Title', fontsize=13, fontweight='bold')
+    ax.legend(loc='upper right')
+    ax.grid(True, alpha=0.3)
+    ax.set_facecolor('#f8f9fa')
+    
+    plt.tight_layout()
+    
+    # Save to file
+    if output_dir:
+        filepath = os.path.join(output_dir, "my_custom_chart.png")
+        fig.savefig(filepath, dpi=150, bbox_inches='tight')
+    
+    # Return or close
+    if show_plot:
+        return fig
+    
+    plt.close(fig)
+    return None
+            </pre>
+        </section>
+
+        <!-- Section 15: Deployment -->
+        <section id="deployment">
+            <h2>15. Deployment</h2>
+
+            <h3>15.1 Local Development</h3>
+            <pre>
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the app
+streamlit run app.py
+
+# Run with specific port
+streamlit run app.py --server.port 8080
+            </pre>
+
+            <h3>15.2 requirements.txt</h3>
+            <pre>
+streamlit>=1.28.0
+pandas>=1.5.0
+numpy>=1.23.0
+matplotlib>=3.6.0
+seaborn>=0.12.0
+requests>=2.28.0
+            </pre>
+
+            <h3>15.3 Streamlit Cloud Deployment</h3>
+            <ol>
+                <li>Push code to GitHub</li>
+                <li>Go to <a href="https://streamlit.io/cloud">streamlit.io/cloud</a></li>
+                <li>Connect your GitHub repository</li>
+                <li>Set <code>app.py</code> as the main file</li>
+                <li>Deploy!</li>
+            </ol>
+
+            <div class="alert alert-tip">
+                <strong>💡 Tip:</strong> For Streamlit Cloud, make sure all required packages are in
+                <code>requirements.txt</code> and avoid any system-level dependencies.
+            </div>
+
+            <h3>15.4 Docker Deployment</h3>
+            <pre>
+# Dockerfile
+FROM python:3.10-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 8501
+
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.headless=true"]
+            </pre>
+
+            <pre>
+# Build and run
+docker build -t solar-monitoring .
+docker run -p 8501:8501 solar-monitoring
+            </pre>
+        </section>
+
+        <footer style="text-align: center; padding: 20px; color: #666; margin-top: 30px;">
+            <p>🌞 Solar Panel Monitoring System - Developer Guide</p>
+            <p>Version 1.0 | January 2026</p>
+        </footer>
+    </div>
+</body>
+
+</html>
