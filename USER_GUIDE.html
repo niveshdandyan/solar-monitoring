@@ -707,6 +707,13 @@
                 calculated during <strong>daytime hours</strong>. You can configure how the system defines "daytime".
             </p>
 
+            <div class="alert alert-important">
+                <strong>☀️ Impact on Metrics</strong>
+                The <strong>Average Irradiance</strong> and <strong>Average Temperature</strong> metrics in Daily and
+                Monthly reports are calculated using <strong>only the defined daytime hours</strong>. This ensures that
+                nighttime zero-values do not artificially lower your averages.
+            </div>
+
             <div class="alert alert-note">
                 <strong>📝 Purpose</strong>
                 Limiting analysis to daytime hours prevents nighttime standby power consumption (or zero production)
@@ -1491,8 +1498,13 @@ Filter criteria:
                 <h3>15.1 Data Completeness</h3>
                 <p>Checks if you are missing data points based on your expected recording frequency.</p>
 
-                <h3>15.2 Value Range Checks</h3>
-                <p>Verifies if readings (Voltage, Irradiance, Temp) are within realistic physical limits.</p>
+                <h3>15.2 Statistics</h3>
+                <p>Provides basic statistics (Min, Max, Mean) for your data columns to help you understand the
+                    distribution.</p>
+                <div class="alert alert-note">
+                    <strong>Note:</strong> Fixed range validation has been disabled. The system provides statistics but
+                    does not enforce arbitrary limits on your data values.
+                </div>
             </section>
 
             <!-- Section 13: Exporting -->
@@ -1576,6 +1588,11 @@ Filter criteria:
                     <li>The main content area will now display the Weather Analysis interface.</li>
                     <li>To return to your solar data analysis, click <strong>"📊 Data Analysis"</strong>.</li>
                 </ol>
+
+                <figure class="screenshot">
+                    <img src="docs/images/weather_sidebar.png" alt="Weather Tool Sidebar">
+                    <figcaption>Figure 10: Accessing the Weather Tool from the Sidebar</figcaption>
+                </figure>
                 <div class="alert alert-tip">
                     <strong>💡 Tip</strong>
                     This separation keeps the interface clean and allows you to focus on one task at a time. You can
@@ -1596,6 +1613,10 @@ Filter criteria:
                             <li>Paste the link and click <strong>"📍 Parse URL"</strong>.</li>
                             <li>The system will extract the exact Latitude and Longitude.</li>
                         </ol>
+                        <figure class="screenshot">
+                            <img src="docs/images/weather_input.png" alt="Weather Tool Input">
+                            <figcaption>Figure 11: Entering Location and Date Range</figcaption>
+                        </figure>
                     </div>
                     <div>
                         <h4>Method B: Manual Coordinates</h4>
@@ -1636,6 +1657,12 @@ Filter criteria:
                 <h3>14.4 Understanding Weather Metrics</h3>
                 <p>Once you click <strong>"☁️ Fetch Weather Data"</strong>, the tool provides detailed atmospheric
                     insights.</p>
+
+                <figure class="screenshot">
+                    <img src="docs/images/weather_results.png" alt="Weather Tool Results">
+                    <figcaption>Figure 12: Comprehensive Weather Analysis Results - Visualizing Irradiance and
+                        Temperature</figcaption>
+                </figure>
 
                 <h4>Solar Irradiance Components</h4>
                 <p>Understanding the different types of solar radiation is critical for accurate analysis:</p>
@@ -1682,56 +1709,58 @@ Filter criteria:
                     <li><strong>Daylight Hours</strong>: Calculated time between Sunrise and Sunset.</li>
                 </ul>
 
-                <h3>14.5 Visualization Views</h3>
-                <p>Switch between three different views to analyze the data:</p>
+                <h3>14.5 Detailed Analysis Views</h3>
+                <p>The tool provides specialized views to analyze data at different resolutions:</p>
 
-                <ol>
-                    <li><strong>Daily Analysis</strong>:
-                        <ul>
-                            <li>Detailed 24-hour profile for a single specific date.</li>
-                            <li>Includes precise <strong>Sunrise</strong> 🌅 and <strong>Sunset</strong> 🌇 times.</li>
-                            <li>Visualizes how clouds (diffuse light) impacted the day vs. clear sun (direct light).
-                            </li>
-                        </ul>
-                    </li>
-                    <li><strong>Monthly Averages</strong>:
-                        <ul>
-                            <li>Shows the "Typical Day" for the selected period.</li>
-                            <li>Smoothes out daily weather noise to show seasonal trends in irradiance and temperature.
-                            </li>
-                        </ul>
-                    </li>
-                    <li><strong>Data Tables</strong>:
-                        <ul>
-                            <li>View the raw hourly and daily numbers.</li>
-                            <li>Useful for exporting or manual checking.</li>
-                        </ul>
-                    </li>
-                </ol>
+                <h4>1. Daily Profile Analysis</h4>
+                <p>Detailed 24-hour profile for understanding daily patterns on a specific date:</p>
+                <figure class="screenshot">
+                    <img src="docs/images/weather_daily_analysis.png" alt="Daily Weather Analysis">
+                    <figcaption>Figure 13: Detailed hourly view for a single day.</figcaption>
+                </figure>
 
-                <h3>14.6 Per-Month Analysis</h3>
-                <p>Within the <strong>Monthly Averages</strong> view, you can drill down into specific calendar months.
-                </p>
-                <ol>
-                    <li>A <strong>dropdown selector</strong> appears listing all months in your date range (e.g.,
-                        "2024-01", "2024-02").</li>
-                    <li>Select a month to see its <strong>hourly irradiance</strong> and <strong>hourly
-                            temperature</strong> graphs.</li>
-                    <li>This allows you to compare patterns across different months (e.g., compare January vs. July).
-                    </li>
-                </ol>
-                <p>Use this feature to understand seasonal variations in solar potential.</p>
+                <h4>2. Monthly Hourly Averages</h4>
+                <p>"Typical Day" view for the entire period, showing average hourly behavior:</p>
+                <figure class="screenshot">
+                    <img src="docs/images/weather_monthly_averages.png" alt="Monthly Weather Averages">
+                    <figcaption>Figure 14: Average hourly patterns for Irradiance and Temperature.</figcaption>
+                </figure>
 
-                <h3>14.7 Calendar Month Averages</h3>
-                <p>At the bottom of the Monthly Averages view, you'll find <strong>Calendar Month Averages</strong>
-                    charts.</p>
-                <ul>
-                    <li>These bar charts show <strong>average irradiance by month</strong> (Jan, Feb, Mar, etc.).</li>
-                    <li>A second chart shows <strong>average temperature by month</strong>.</li>
-                    <li>Each bar is labeled with its exact value for easy reading.</li>
-                </ul>
-                <p>This is particularly useful when analyzing a full year of data to see which months have the highest
-                    solar potential.</p>
+                <h4>3. Data Tables</h4>
+                <p>Access and download raw hourly/daily numbers:</p>
+                <figure class="screenshot">
+                    <img src="docs/images/weather_data_table.png" alt="Weather Data Table">
+                    <figcaption>Figure 15: Raw Data Table.</figcaption>
+                </figure>
+
+                <h3>14.6 Yearly Daily Trends</h3>
+                <p>Visualize how temperature and solar potential evolve over the entire year:</p>
+                <figure class="screenshot">
+                    <img src="docs/images/weather_daily_trends.png" alt="Yearly Daily Trends">
+                    <figcaption>Figure 16: Daily Max/Min Temperatures and Total Irradiance trends.</figcaption>
+                </figure>
+
+                <h3>14.7 Per-Month Analysis</h3>
+                <p>Drill down into specific months to see their unique hourly profiles:</p>
+                <figure class="screenshot">
+                    <img src="docs/images/weather_per_month.png" alt="Per-Month Analysis">
+                    <figcaption>Figure 17: Select a month to see its specific hourly curves.</figcaption>
+                </figure>
+
+                <h3>14.8 Calendar Comparisons</h3>
+                <p>Compare aggregate performance across different calendar months:</p>
+                <figure class="screenshot">
+                    <img src="docs/images/weather_calendar_averages.png" alt="Calendar Month Averages">
+                    <figcaption>Figure 18: Bar charts comparing Average Irradiance and Temperature by month.
+                    </figcaption>
+                </figure>
+
+                <h3>14.9 Daylight Availability</h3>
+                <p>Understand the changing length of days and solar window:</p>
+                <figure class="screenshot">
+                    <img src="docs/images/weather_sunrise_sunset.png" alt="Sunrise and Sunset Times">
+                    <figcaption>Figure 19: Annual Sunrise, Sunset, and Daylight Hours curve.</figcaption>
+                </figure>
 
             </section>
 
@@ -1799,6 +1828,10 @@ Filter criteria:
                     <li><strong>SoC Exclusion Threshold (%)</strong>: Exclude data points where SoC is above this value
                         (default: 95%).</li>
                 </ul>
+                <figure class="screenshot">
+                    <img src="docs/images/power_anomaly_settings.png" alt="Power Anomaly Settings and Summary">
+                    <figcaption>Figure 20: Detection Settings and Anomaly Summary Dashboard</figcaption>
+                </figure>
 
                 <h3>16.4 Summary Metrics</h3>
                 <p>After detection, the tab displays:</p>
@@ -1819,6 +1852,10 @@ Filter criteria:
                     <li>A dashed red line shows the power threshold, and an orange dashed line shows the irradiance
                         threshold.</li>
                 </ul>
+                <figure class="screenshot">
+                    <img src="docs/images/power_anomaly_scatter.png" alt="Power vs Irradiance Scatter Plot">
+                    <figcaption>Figure 21: Scatter Plot highlighting anomalies in red</figcaption>
+                </figure>
 
                 <h4>2. Timeline (Daily Anomaly Count)</h4>
                 <ul>
@@ -1835,6 +1872,10 @@ Filter criteria:
                     <li>Click <strong>"📥 Download Anomalies CSV"</strong> to export the table for further analysis.
                     </li>
                 </ul>
+                <figure class="screenshot">
+                    <img src="docs/images/power_anomaly_table.png" alt="Anomaly Data Table">
+                    <figcaption>Figure 22: Raw Anomaly Data with CSV Download Option</figcaption>
+                </figure>
 
                 <!-- Section 15: Troubleshooting -->
                 <section id="troubleshooting">
