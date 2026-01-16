@@ -167,7 +167,13 @@ if 'daily_metrics' not in st.session_state:
 if 'monthly_metrics' not in st.session_state:
     st.session_state.monthly_metrics = None
 if 'view_mode' not in st.session_state:
-    st.session_state.view_mode = 'data_analysis'  # 'data_analysis' or 'weather_analysis'
+    st.session_state.view_mode = 'data_analysis'  # 'data_analysis', 'weather_analysis', or 'multi_site'
+
+# Multi-site comparison session state
+if 'multi_site_data' not in st.session_state:
+    st.session_state.multi_site_data = {}  # Dictionary: site_id -> site_data
+if 'multi_site_processed' not in st.session_state:
+    st.session_state.multi_site_processed = False
 
 # Get export directory
 EXPORT_DIR = get_export_directory(os.path.join(os.path.dirname(__file__), "exports"))
@@ -184,16 +190,25 @@ def main():
         
         # View mode toggle
         st.markdown("---")
-        col_view1, col_view2 = st.columns(2)
+        st.markdown("**Select Analysis Mode:**")
+        col_view1, col_view2, col_view3 = st.columns(3)
         with col_view1:
-            if st.button("📊 Data Analysis", use_container_width=True, 
-                        type="primary" if st.session_state.view_mode == 'data_analysis' else "secondary"):
+            if st.button("📊 Data", use_container_width=True, 
+                        type="primary" if st.session_state.view_mode == 'data_analysis' else "secondary",
+                        help="Single-site data analysis"):
                 st.session_state.view_mode = 'data_analysis'
                 st.rerun()
         with col_view2:
-            if st.button("🌤️ Weather Tool", use_container_width=True,
-                        type="primary" if st.session_state.view_mode == 'weather_analysis' else "secondary"):
+            if st.button("🌤️ Weather", use_container_width=True,
+                        type="primary" if st.session_state.view_mode == 'weather_analysis' else "secondary",
+                        help="Standalone weather analysis"):
                 st.session_state.view_mode = 'weather_analysis'
+                st.rerun()
+        with col_view3:
+            if st.button("🏢 Multi-Site", use_container_width=True,
+                        type="primary" if st.session_state.view_mode == 'multi_site' else "secondary",
+                        help="Compare multiple sites"):
+                st.session_state.view_mode = 'multi_site'
                 st.rerun()
         
         st.markdown("---")
@@ -491,6 +506,11 @@ def main():
         st.markdown("## 🌤️ Standalone Weather Analysis")
         st.caption("*Analyze historical weather data for any location - useful for site selection and solar potential analysis.*")
         display_weather_analysis(EXPORT_DIR)
+    elif st.session_state.view_mode == 'multi_site':
+        # Multi-Site Comparison Mode
+        st.markdown("## 🏢 Multi-Site Comparison")
+        st.caption("*Compare performance across multiple solar installations with normalized metrics for fair comparison.*")
+        display_multi_site_comparison(EXPORT_DIR)
     else:
         # Data Analysis Mode - Show uploaded data analysis
         if st.session_state.data_loaded:
@@ -505,7 +525,7 @@ def main():
             
             ---
             
-            💡 **Tip:** Use the **🌤️ Weather Tool** button above to explore historical weather data for any location without uploading solar data.
+            💡 **Tip:** Use the **🌤️ Weather** button for location weather analysis, or **🏢 Multi-Site** to compare multiple installations.
             """)
 
 
@@ -2827,6 +2847,311 @@ def display_weather_analysis(export_dir: str):
                 if 'Sunset' in display_daily.columns:
                     display_daily['Sunset'] = display_daily['Sunset'].dt.strftime('%H:%M')
                 st.dataframe(display_daily, use_container_width=True)
+
+
+def display_multi_site_comparison(export_dir: str):
+    """Display multi-site comparison interface for comparing multiple solar installations."""
+    
+    from modules.multi_site import (
+        process_site_data,
+        find_common_date_range,
+        create_comparison_dataframe,
+        calculate_relative_performance
+    )
+    from modules.multi_site_visualizations import (
+        plot_multi_site_pr_bar,
+        plot_multi_site_yield_bar,
+        plot_multi_site_pr_trend,
+        plot_multi_site_yield_trend,
+        plot_multi_site_pr_boxplot,
+        plot_multi_site_monthly_heatmap,
+        plot_multi_site_ranking
+    )
+    from modules.data_parser import parse_data, prepare_analysis_data
+    from modules.calculations import calculate_daily_metrics, calculate_monthly_metrics
+    
+    # Sidebar for multi-site specific settings
+    with st.sidebar:
+        st.markdown("---")
+        st.subheader("🏢 Multi-Site Settings")
+        
+        # Reset button
+        if st.button("🗑️ Clear All Sites", use_container_width=True):
+            st.session_state.multi_site_data = {}
+            st.session_state.multi_site_processed = False
+            st.rerun()
+        
+        # Show loaded sites count
+        site_count = len(st.session_state.multi_site_data)
+        st.info(f"📊 **{site_count} sites loaded**")
+    
+    # Main content area
+    st.markdown("---")
+    
+    # Two-column layout: Upload on left, Site list on right
+    col_upload, col_sites = st.columns([1, 1])
+    
+    with col_upload:
+        st.markdown("### 📁 Add Sites")
+        st.caption("Upload CSV files for each site you want to compare.")
+        
+        # File uploader
+        uploaded_file = st.file_uploader(
+            "Upload Site Data (CSV)",
+            type=['csv'],
+            key="multi_site_uploader",
+            help="Upload a CSV file with solar data for one site"
+        )
+        
+        if uploaded_file:
+            # Show configuration for this upload
+            st.markdown(f"**Configuring:** `{uploaded_file.name}`")
+            
+            site_name = st.text_input(
+                "Site Name",
+                value=uploaded_file.name.replace('.csv', ''),
+                key="new_site_name",
+                help="Give this site a descriptive name"
+            )
+            
+            col_power, col_coeff = st.columns(2)
+            with col_power:
+                nominal_power = st.number_input(
+                    "Nominal Power (kWp)",
+                    min_value=0.01,
+                    max_value=10000.0,
+                    value=5.0,
+                    step=0.1,
+                    key="new_site_power",
+                    help="System rated power at STC"
+                )
+            with col_coeff:
+                temp_coeff = st.number_input(
+                    "Temp Coeff (%/°C)",
+                    min_value=-1.0,
+                    max_value=0.0,
+                    value=-0.4,
+                    step=0.01,
+                    key="new_site_coeff"
+                )
+            
+            if st.button("➕ Add This Site", use_container_width=True, type="primary"):
+                try:
+                    with st.spinner(f"Processing {site_name}..."):
+                        # Parse the CSV
+                        df = pd.read_csv(uploaded_file)
+                        parsed_df, column_mapping = parse_data(df)
+                        analysis_df = prepare_analysis_data(parsed_df, column_mapping)
+                        
+                        # Calculate metrics
+                        temp_coeff_decimal = temp_coeff / 100
+                        daily_metrics = calculate_daily_metrics(
+                            analysis_df, nominal_power, temp_coeff_decimal
+                        )
+                        monthly_metrics = calculate_monthly_metrics(
+                            analysis_df, nominal_power, temp_coeff_decimal
+                        )
+                        
+                        # Calculate summary
+                        total_energy = daily_metrics['Actual_Energy_kWh'].sum() if 'Actual_Energy_kWh' in daily_metrics.columns else 0
+                        avg_pr = daily_metrics['Performance_Ratio'].mean() if 'Performance_Ratio' in daily_metrics.columns else 0
+                        
+                        # Create site entry
+                        site_id = f"site_{len(st.session_state.multi_site_data) + 1}"
+                        st.session_state.multi_site_data[site_id] = {
+                            'name': site_name,
+                            'nominal_power_kwp': nominal_power,
+                            'temp_coefficient': temp_coeff_decimal,
+                            'analysis_df': analysis_df,
+                            'daily_metrics': daily_metrics,
+                            'monthly_metrics': monthly_metrics,
+                            'column_mapping': column_mapping,
+                            'date_range': (
+                                analysis_df['Timestamp'].min().strftime('%Y-%m-%d'),
+                                analysis_df['Timestamp'].max().strftime('%Y-%m-%d')
+                            ),
+                            'data_points': len(analysis_df),
+                            'summary': {
+                                'total_energy_kwh': round(total_energy, 2),
+                                'avg_pr': round(avg_pr, 2),
+                            }
+                        }
+                        
+                        st.success(f"✅ Added site: **{site_name}**")
+                        st.session_state.multi_site_processed = len(st.session_state.multi_site_data) >= 2
+                        st.rerun()
+                        
+                except Exception as e:
+                    st.error(f"❌ Error processing file: {str(e)}")
+    
+    with col_sites:
+        st.markdown("### 📋 Loaded Sites")
+        
+        if not st.session_state.multi_site_data:
+            st.info("No sites loaded yet. Upload CSV files to add sites for comparison.")
+        else:
+            # Show each loaded site
+            for site_id, site_data in st.session_state.multi_site_data.items():
+                with st.expander(f"📍 {site_data['name']}", expanded=False):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Nominal Power", f"{site_data['nominal_power_kwp']} kWp")
+                        st.metric("Data Points", f"{site_data['data_points']:,}")
+                    with col2:
+                        st.metric("Date Range", f"{site_data['date_range'][0]} to {site_data['date_range'][1]}")
+                        if 'summary' in site_data:
+                            st.metric("Avg PR", f"{site_data['summary'].get('avg_pr', 'N/A')}%")
+                    
+                    # Remove button
+                    if st.button(f"🗑️ Remove", key=f"remove_{site_id}"):
+                        del st.session_state.multi_site_data[site_id]
+                        st.rerun()
+    
+    st.markdown("---")
+    
+    # Comparison section (only if 2+ sites loaded)
+    if len(st.session_state.multi_site_data) >= 2:
+        st.markdown("## 📊 Site Comparison")
+        
+        # Common date range info
+        common_start, common_end = find_common_date_range(st.session_state.multi_site_data)
+        if common_start and common_end:
+            st.info(f"📅 **Common date range across all sites:** {common_start} to {common_end}")
+        
+        # Create comparison dataframe
+        comparison_df = create_comparison_dataframe(
+            st.session_state.multi_site_data,
+            (common_start, common_end)
+        )
+        
+        if not comparison_df.empty:
+            # Summary Table
+            st.markdown("### 📋 Performance Summary")
+            
+            # Style the dataframe
+            def highlight_best(s):
+                if s.name == 'Avg PR (%)' or s.name == 'Avg Daily Yield (kWh/kWp)':
+                    is_best = s == s.max()
+                    return ['background-color: #d4edda' if v else '' for v in is_best]
+                return ['' for _ in s]
+            
+            display_cols = ['Site Name', 'Nominal Power (kWp)', 'Days Analyzed', 
+                           'Total Energy (kWh)', 'Avg Daily Yield (kWh/kWp)', 
+                           'Avg PR (%)', 'PR Rank']
+            display_df = comparison_df[[c for c in display_cols if c in comparison_df.columns]]
+            
+            styled_df = display_df.style.apply(highlight_best)
+            st.dataframe(styled_df, use_container_width=True, hide_index=True)
+            
+            # Visualization tabs
+            viz_tabs = st.tabs([
+                "📊 Bar Charts",
+                "📈 Trends",
+                "📦 Distribution",
+                "🗓️ Heatmap",
+                "🏆 Rankings"
+            ])
+            
+            with viz_tabs[0]:
+                st.markdown("### Performance Ratio & Yield Comparison")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    fig_pr = plot_multi_site_pr_bar(comparison_df, show_plot=True)
+                    if fig_pr:
+                        st.pyplot(fig_pr)
+                
+                with col2:
+                    fig_yield = plot_multi_site_yield_bar(comparison_df, show_plot=True)
+                    if fig_yield:
+                        st.pyplot(fig_yield)
+            
+            with viz_tabs[1]:
+                st.markdown("### Daily Performance Trends")
+                
+                fig_pr_trend = plot_multi_site_pr_trend(
+                    st.session_state.multi_site_data,
+                    (common_start, common_end),
+                    show_plot=True
+                )
+                if fig_pr_trend:
+                    st.pyplot(fig_pr_trend)
+                
+                fig_yield_trend = plot_multi_site_yield_trend(
+                    st.session_state.multi_site_data,
+                    (common_start, common_end),
+                    show_plot=True
+                )
+                if fig_yield_trend:
+                    st.pyplot(fig_yield_trend)
+            
+            with viz_tabs[2]:
+                st.markdown("### PR Distribution by Site")
+                st.caption("Box plots show median, quartiles, and outliers - useful for comparing consistency.")
+                
+                fig_box = plot_multi_site_pr_boxplot(
+                    st.session_state.multi_site_data,
+                    (common_start, common_end),
+                    show_plot=True
+                )
+                if fig_box:
+                    st.pyplot(fig_box)
+            
+            with viz_tabs[3]:
+                st.markdown("### Monthly Performance Heatmap")
+                
+                metric_choice = st.radio(
+                    "Select Metric",
+                    ["Performance Ratio", "Specific Yield"],
+                    horizontal=True,
+                    key="heatmap_metric"
+                )
+                
+                metric_key = 'pr' if metric_choice == "Performance Ratio" else 'yield'
+                fig_heatmap = plot_multi_site_monthly_heatmap(
+                    st.session_state.multi_site_data,
+                    metric=metric_key,
+                    show_plot=True
+                )
+                if fig_heatmap:
+                    st.pyplot(fig_heatmap)
+            
+            with viz_tabs[4]:
+                st.markdown("### Site Rankings")
+                
+                fig_ranking = plot_multi_site_ranking(comparison_df, show_plot=True)
+                if fig_ranking:
+                    st.pyplot(fig_ranking)
+                
+                # Show best performer
+                if 'PR Rank' in comparison_df.columns:
+                    best_site = comparison_df[comparison_df['PR Rank'] == 1]['Site Name'].values
+                    if len(best_site) > 0:
+                        st.success(f"🏆 **Best Performing Site (by PR):** {best_site[0]}")
+        else:
+            st.warning("Could not generate comparison data. Check that all sites have valid metrics.")
+    
+    elif len(st.session_state.multi_site_data) == 1:
+        st.info("📊 **Add at least 2 sites** to enable comparison features.")
+    else:
+        # Getting started guide
+        st.markdown("### 🚀 Getting Started")
+        st.markdown("""
+        To compare multiple solar installations:
+        
+        1. **Upload a CSV file** for each site (one at a time)
+        2. **Configure each site** with its name and nominal power (kWp)
+        3. **Add at least 2 sites** to enable comparison
+        4. **View comparisons** using normalized metrics (PR, Specific Yield)
+        
+        ---
+        
+        📌 **Why normalized metrics?**
+        
+        A 100 kWp commercial system will always produce more energy than a 5 kWp home system.
+        We use **Performance Ratio** and **Specific Yield (kWh/kWp)** to enable fair comparison
+        regardless of system size.
+        """)
 
 
 if __name__ == "__main__":
