@@ -9,8 +9,10 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict
 import os
+
+from modules.calculations import filter_anomalous_data
 
 # Set professional style
 plt.style.use('seaborn-v0_8-whitegrid')
@@ -397,7 +399,14 @@ def plot_daily_current_irradiance(
 # MONTHLY HOURLY AVERAGE GRAPHS
 # ============================================================================
 
-def calculate_monthly_hourly_averages(df: pd.DataFrame, month: str) -> pd.DataFrame:
+def calculate_monthly_hourly_averages(
+    df: pd.DataFrame, 
+    month: str,
+    filter_anomalous: bool = False,
+    irradiance_threshold: float = 50.0,
+    power_threshold: float = 0.0,
+    soc_low_threshold: float = 20.0
+) -> Tuple[pd.DataFrame, Dict]:
     """
     Calculate hourly averages for a given month.
     Groups all data by hour of day and computes mean values.
@@ -405,18 +414,32 @@ def calculate_monthly_hourly_averages(df: pd.DataFrame, month: str) -> pd.DataFr
     Args:
         df: DataFrame with Timestamp and sensor columns
         month: Month string in format 'YYYY-MM' (matching the Month column)
+        filter_anomalous: Whether to filter out anomalous data points
+        irradiance_threshold: Min irradiance to consider as "should produce power"
+        power_threshold: Max power to consider as "not producing"
+        soc_low_threshold: SoC threshold for anomaly filter
     
     Returns:
-        DataFrame with Hour column and averaged sensor values
+        Tuple of (DataFrame with Hour column and averaged sensor values, filter_info dict)
     """
+    filter_info = {'rows_excluded': 0, 'rows_total': 0, 'exclusion_pct': 0.0}
+    
     # Filter data for the selected month
     if 'Month' not in df.columns:
-        return pd.DataFrame()
+        return pd.DataFrame(), filter_info
     
     month_df = df[df['Month'].astype(str) == str(month)].copy()
     
     if len(month_df) == 0:
-        return pd.DataFrame()
+        return pd.DataFrame(), filter_info
+    
+    # Apply anomalous data filter if enabled
+    if filter_anomalous:
+        month_df, filter_info = filter_anomalous_data(
+            month_df, irradiance_threshold, power_threshold, soc_low_threshold
+        )
+        if len(month_df) == 0:
+            return pd.DataFrame(), filter_info
     
     # Extract hour from timestamp
     month_df['Hour'] = month_df['Timestamp'].dt.hour
@@ -425,7 +448,7 @@ def calculate_monthly_hourly_averages(df: pd.DataFrame, month: str) -> pd.DataFr
     month_df = month_df[(month_df['Hour'] >= 6) & (month_df['Hour'] <= 18)]
     
     if len(month_df) == 0:
-        return pd.DataFrame()
+        return pd.DataFrame(), filter_info
     
     # Group by hour and calculate mean
     numeric_cols = ['Power_W', 'Irradiance_Wm2', 'Voltage_V', 'Current_A', 'SoC_pct', 'Temperature_C']
@@ -433,20 +456,30 @@ def calculate_monthly_hourly_averages(df: pd.DataFrame, month: str) -> pd.DataFr
     
     hourly_avg = month_df[available_cols].groupby('Hour').mean().reset_index()
     
-    return hourly_avg
+    return hourly_avg, filter_info
 
 
 def plot_monthly_hourly_power_irradiance(
     df: pd.DataFrame,
     month: str,
     output_dir: str,
-    show_plot: bool = False
+    show_plot: bool = False,
+    filter_anomalous: bool = False,
+    irradiance_threshold: float = 50.0,
+    power_threshold: float = 0.0,
+    soc_low_threshold: float = 20.0
 ) -> Optional[plt.Figure]:
     """
     Create monthly hourly-averaged Power and Irradiance graph.
     Shows the average Power and Irradiance at each hour across all days in the month.
     """
-    hourly_avg = calculate_monthly_hourly_averages(df, month)
+    hourly_avg, _ = calculate_monthly_hourly_averages(
+        df, month,
+        filter_anomalous=filter_anomalous,
+        irradiance_threshold=irradiance_threshold,
+        power_threshold=power_threshold,
+        soc_low_threshold=soc_low_threshold
+    )
     
     if len(hourly_avg) == 0:
         return None
@@ -501,12 +534,22 @@ def plot_monthly_hourly_power_irradiance_soc(
     df: pd.DataFrame,
     month: str,
     output_dir: str,
-    show_plot: bool = False
+    show_plot: bool = False,
+    filter_anomalous: bool = False,
+    irradiance_threshold: float = 50.0,
+    power_threshold: float = 0.0,
+    soc_low_threshold: float = 20.0
 ) -> Optional[plt.Figure]:
     """
     Create monthly hourly-averaged Power, Irradiance, and Battery SoC graph.
     """
-    hourly_avg = calculate_monthly_hourly_averages(df, month)
+    hourly_avg, _ = calculate_monthly_hourly_averages(
+        df, month,
+        filter_anomalous=filter_anomalous,
+        irradiance_threshold=irradiance_threshold,
+        power_threshold=power_threshold,
+        soc_low_threshold=soc_low_threshold
+    )
     
     if len(hourly_avg) == 0:
         return None
@@ -579,12 +622,22 @@ def plot_monthly_hourly_voltage_irradiance(
     df: pd.DataFrame,
     month: str,
     output_dir: str,
-    show_plot: bool = False
+    show_plot: bool = False,
+    filter_anomalous: bool = False,
+    irradiance_threshold: float = 50.0,
+    power_threshold: float = 0.0,
+    soc_low_threshold: float = 20.0
 ) -> Optional[plt.Figure]:
     """
     Create monthly hourly-averaged Voltage and Irradiance graph.
     """
-    hourly_avg = calculate_monthly_hourly_averages(df, month)
+    hourly_avg, _ = calculate_monthly_hourly_averages(
+        df, month,
+        filter_anomalous=filter_anomalous,
+        irradiance_threshold=irradiance_threshold,
+        power_threshold=power_threshold,
+        soc_low_threshold=soc_low_threshold
+    )
     
     if len(hourly_avg) == 0 or 'Voltage_V' not in hourly_avg.columns:
         return None
@@ -638,12 +691,22 @@ def plot_monthly_hourly_current_irradiance(
     df: pd.DataFrame,
     month: str,
     output_dir: str,
-    show_plot: bool = False
+    show_plot: bool = False,
+    filter_anomalous: bool = False,
+    irradiance_threshold: float = 50.0,
+    power_threshold: float = 0.0,
+    soc_low_threshold: float = 20.0
 ) -> Optional[plt.Figure]:
     """
     Create monthly hourly-averaged Current and Irradiance graph.
     """
-    hourly_avg = calculate_monthly_hourly_averages(df, month)
+    hourly_avg, _ = calculate_monthly_hourly_averages(
+        df, month,
+        filter_anomalous=filter_anomalous,
+        irradiance_threshold=irradiance_threshold,
+        power_threshold=power_threshold,
+        soc_low_threshold=soc_low_threshold
+    )
     
     if len(hourly_avg) == 0 or 'Current_A' not in hourly_avg.columns:
         return None
@@ -700,7 +763,11 @@ def plot_monthly_hourly_current_irradiance(
 def calculate_custom_range_hourly_averages(
     df: pd.DataFrame, 
     start_date: str, 
-    end_date: str
+    end_date: str,
+    filter_anomalous: bool = False,
+    irradiance_threshold: float = 50.0,
+    power_threshold: float = 0.0,
+    soc_low_threshold: float = 20.0
 ) -> pd.DataFrame:
     """
     Calculate hourly averages for a custom date range.
@@ -710,6 +777,10 @@ def calculate_custom_range_hourly_averages(
         df: DataFrame with Timestamp and sensor columns
         start_date: Start date string in format 'YYYY-MM-DD'
         end_date: End date string in format 'YYYY-MM-DD'
+        filter_anomalous: Whether to filter anomalous data
+        irradiance_threshold: Threshold for high irradiance
+        power_threshold: Threshold for low power
+        soc_low_threshold: Threshold for low SoC
     
     Returns:
         DataFrame with Hour column and averaged sensor values
@@ -726,6 +797,18 @@ def calculate_custom_range_hourly_averages(
     
     if len(range_df) == 0:
         return pd.DataFrame()
+    
+    # Apply anomalous filtering if requested
+    if filter_anomalous:
+        range_df, _ = filter_anomalous_data(
+            range_df,
+            irradiance_threshold=irradiance_threshold,
+            power_threshold=power_threshold,
+            soc_low_threshold=soc_low_threshold
+        )
+        
+        if len(range_df) == 0:
+            return pd.DataFrame()
     
     # Extract hour from timestamp
     range_df['Hour'] = range_df['Timestamp'].dt.hour
@@ -747,8 +830,12 @@ def calculate_custom_range_hourly_averages(
 
 def calculate_selected_dates_hourly_averages(
     df: pd.DataFrame, 
-    selected_dates: list
-) -> pd.DataFrame:
+    selected_dates: list,
+    filter_anomalous: bool = False,
+    irradiance_threshold: float = 50.0,
+    power_threshold: float = 0.0,
+    soc_low_threshold: float = 20.0
+) -> Tuple[pd.DataFrame, Dict]:
     """
     Calculate hourly averages for specific selected dates (non-continuous).
     Groups all data by hour of day and computes mean values.
@@ -756,12 +843,18 @@ def calculate_selected_dates_hourly_averages(
     Args:
         df: DataFrame with Timestamp and sensor columns
         selected_dates: List of date objects or strings to include
+        filter_anomalous: Whether to filter out anomalous data points
+        irradiance_threshold: Min irradiance to consider as "should produce power"
+        power_threshold: Max power to consider as "not producing"
+        soc_low_threshold: SoC threshold for anomaly filter
     
     Returns:
-        DataFrame with Hour column and averaged sensor values
+        Tuple of (DataFrame with Hour column and averaged sensor values, filter_info dict)
     """
+    filter_info = {'rows_excluded': 0, 'rows_total': 0, 'exclusion_pct': 0.0}
+    
     if 'Date' not in df.columns or len(selected_dates) == 0:
-        return pd.DataFrame()
+        return pd.DataFrame(), filter_info
     
     # Convert dates for comparison
     selected = [pd.to_datetime(d).date() if isinstance(d, str) else d for d in selected_dates]
@@ -770,7 +863,15 @@ def calculate_selected_dates_hourly_averages(
     range_df = df[df['Date'].isin(selected)].copy()
     
     if len(range_df) == 0:
-        return pd.DataFrame()
+        return pd.DataFrame(), filter_info
+    
+    # Apply anomalous data filter if enabled
+    if filter_anomalous:
+        range_df, filter_info = filter_anomalous_data(
+            range_df, irradiance_threshold, power_threshold, soc_low_threshold
+        )
+        if len(range_df) == 0:
+            return pd.DataFrame(), filter_info
     
     # Extract hour from timestamp
     range_df['Hour'] = range_df['Timestamp'].dt.hour
@@ -779,7 +880,7 @@ def calculate_selected_dates_hourly_averages(
     range_df = range_df[(range_df['Hour'] >= 6) & (range_df['Hour'] <= 18)]
     
     if len(range_df) == 0:
-        return pd.DataFrame()
+        return pd.DataFrame(), filter_info
     
     # Group by hour and calculate mean
     numeric_cols = ['Power_W', 'Irradiance_Wm2', 'Voltage_V', 'Current_A', 'SoC_pct', 'Temperature_C']
@@ -787,17 +888,27 @@ def calculate_selected_dates_hourly_averages(
     
     hourly_avg = range_df[available_cols].groupby('Hour').mean().reset_index()
     
-    return hourly_avg
+    return hourly_avg, filter_info
 
 
 def plot_selected_dates_hourly_power_irradiance(
     df: pd.DataFrame,
     selected_dates: list,
     output_dir: str,
-    show_plot: bool = False
+    show_plot: bool = False,
+    filter_anomalous: bool = False,
+    irradiance_threshold: float = 50.0,
+    power_threshold: float = 0.0,
+    soc_low_threshold: float = 20.0
 ) -> Optional[plt.Figure]:
     """Create hourly-averaged Power and Irradiance graph for selected dates."""
-    hourly_avg = calculate_selected_dates_hourly_averages(df, selected_dates)
+    hourly_avg, _ = calculate_selected_dates_hourly_averages(
+        df, selected_dates,
+        filter_anomalous=filter_anomalous,
+        irradiance_threshold=irradiance_threshold,
+        power_threshold=power_threshold,
+        soc_low_threshold=soc_low_threshold
+    )
     
     if len(hourly_avg) == 0:
         return None
@@ -843,7 +954,7 @@ def plot_selected_dates_hourly_power_irradiance_soc(
     show_plot: bool = False
 ) -> Optional[plt.Figure]:
     """Create hourly-averaged Power, Irradiance, and SoC graph for selected dates."""
-    hourly_avg = calculate_selected_dates_hourly_averages(df, selected_dates)
+    hourly_avg, _ = calculate_selected_dates_hourly_averages(df, selected_dates)
     
     if len(hourly_avg) == 0:
         return None
@@ -897,7 +1008,7 @@ def plot_selected_dates_hourly_voltage_irradiance(
     show_plot: bool = False
 ) -> Optional[plt.Figure]:
     """Create hourly-averaged Voltage and Irradiance graph for selected dates."""
-    hourly_avg = calculate_selected_dates_hourly_averages(df, selected_dates)
+    hourly_avg, _ = calculate_selected_dates_hourly_averages(df, selected_dates)
     
     if len(hourly_avg) == 0 or 'Voltage_V' not in hourly_avg.columns:
         return None
@@ -942,7 +1053,7 @@ def plot_selected_dates_hourly_current_irradiance(
     show_plot: bool = False
 ) -> Optional[plt.Figure]:
     """Create hourly-averaged Current and Irradiance graph for selected dates."""
-    hourly_avg = calculate_selected_dates_hourly_averages(df, selected_dates)
+    hourly_avg, _ = calculate_selected_dates_hourly_averages(df, selected_dates)
     
     if len(hourly_avg) == 0 or 'Current_A' not in hourly_avg.columns:
         return None
@@ -985,12 +1096,22 @@ def plot_custom_range_hourly_power_irradiance(
     start_date: str,
     end_date: str,
     output_dir: str,
-    show_plot: bool = False
+    show_plot: bool = False,
+    filter_anomalous: bool = False,
+    irradiance_threshold: float = 50.0,
+    power_threshold: float = 0.0,
+    soc_low_threshold: float = 20.0
 ) -> Optional[plt.Figure]:
     """
     Create custom date range hourly-averaged Power and Irradiance graph.
     """
-    hourly_avg = calculate_custom_range_hourly_averages(df, start_date, end_date)
+    hourly_avg = calculate_custom_range_hourly_averages(
+        df, start_date, end_date,
+        filter_anomalous=filter_anomalous,
+        irradiance_threshold=irradiance_threshold,
+        power_threshold=power_threshold,
+        soc_low_threshold=soc_low_threshold
+    )
     
     if len(hourly_avg) == 0:
         return None

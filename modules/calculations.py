@@ -97,12 +97,99 @@ def filter_for_pr_calculation(df: pd.DataFrame, soc_threshold: float = 95.0) -> 
     return df.copy()
 
 
+def filter_anomalous_data(
+    df: pd.DataFrame,
+    irradiance_threshold: float = 50.0,
+    power_threshold: float = 0.0,
+    soc_low_threshold: float = 20.0
+) -> Tuple[pd.DataFrame, Dict]:
+    """
+    Filter out anomalous data points where high irradiance but no power output.
+    
+    Excludes timestamps where:
+    - Irradiance > irradiance_threshold AND
+    - Power <= power_threshold AND
+    - SoC < soc_low_threshold (if SoC data available)
+    
+    This identifies potential issues like shading, inverter faults, or system downtime
+    during periods when the system should be producing power.
+    
+    Args:
+        df: Input dataframe with Power_W, Irradiance_Wm2, and optionally SoC_pct
+        irradiance_threshold: Minimum irradiance (W/m²) to consider as "should be producing"
+        power_threshold: Maximum power (W) to consider as "not producing"
+        soc_low_threshold: SoC percentage below which to apply filter (if SoC available)
+    
+    Returns:
+        Tuple of (filtered_dataframe, filter_info_dict)
+        filter_info_dict contains:
+            - rows_excluded: Number of rows excluded
+            - rows_total: Total rows before filtering
+            - exclusion_pct: Percentage of data excluded
+            - has_soc: Whether SoC data was used in filtering
+    """
+    if df is None or len(df) == 0:
+        return df, {'rows_excluded': 0, 'rows_total': 0, 'exclusion_pct': 0.0, 'has_soc': False}
+    
+    original_count = len(df)
+    
+    # Check if required columns exist
+    has_irradiance = 'Irradiance_Wm2' in df.columns
+    has_power = 'Power_W' in df.columns
+    has_soc = 'SoC_pct' in df.columns
+    
+    # If we don't have both irradiance and power, we can't apply this filter
+    if not has_irradiance or not has_power:
+        return df.copy(), {
+            'rows_excluded': 0,
+            'rows_total': original_count,
+            'exclusion_pct': 0.0,
+            'has_soc': has_soc,
+            'info': 'Filter not applied - missing Irradiance or Power columns'
+        }
+    
+    # Build the anomaly condition
+    # Anomalous = High irradiance BUT low/zero power
+    high_irradiance = df['Irradiance_Wm2'] > irradiance_threshold
+    low_power = df['Power_W'] <= power_threshold
+    
+    if has_soc:
+        # Only exclude if SoC is also low (not battery-full curtailment)
+        low_soc = df['SoC_pct'] < soc_low_threshold
+        anomaly_mask = high_irradiance & low_power & low_soc
+    else:
+        # Without SoC data, just use irradiance and power
+        anomaly_mask = high_irradiance & low_power
+    
+    # Filter out anomalous data (keep rows where anomaly_mask is False)
+    filtered_df = df[~anomaly_mask].copy()
+    
+    rows_excluded = original_count - len(filtered_df)
+    exclusion_pct = (rows_excluded / original_count * 100) if original_count > 0 else 0.0
+    
+    filter_info = {
+        'rows_excluded': rows_excluded,
+        'rows_total': original_count,
+        'exclusion_pct': exclusion_pct,
+        'has_soc': has_soc,
+        'irradiance_threshold': irradiance_threshold,
+        'power_threshold': power_threshold,
+        'soc_low_threshold': soc_low_threshold if has_soc else None
+    }
+    
+    return filtered_df, filter_info
+
+
 def calculate_performance_ratio(
     df: pd.DataFrame,
     nominal_power_kw: float,
     temp_coefficient: float,
     filter_high_soc: bool = True,
-    soc_threshold: float = 95.0
+    soc_threshold: float = 95.0,
+    filter_anomalous: bool = False,
+    irradiance_threshold: float = 50.0,
+    power_threshold: float = 0.0,
+    soc_low_threshold: float = 20.0
 ) -> Dict:
     """
     Calculate Performance Ratio.
@@ -114,18 +201,34 @@ def calculate_performance_ratio(
         nominal_power_kw: System nominal power at STC (kW)
         temp_coefficient: Power temperature coefficient
         filter_high_soc: Whether to exclude high SoC data points
-        soc_threshold: SoC threshold for filtering
+        soc_threshold: SoC threshold for filtering (high SoC exclusion)
+        filter_anomalous: Whether to exclude anomalous data (high irradiance, zero power)
+        irradiance_threshold: Min irradiance to consider as "should produce power"
+        power_threshold: Max power to consider as "not producing"
+        soc_low_threshold: SoC threshold for anomaly filter (only exclude if SoC below this)
     
     Returns:
         Dictionary with PR value and calculation details
     """
-    # Filter data if needed
-    if filter_high_soc and 'SoC_pct' in df.columns:
-        calc_df = filter_for_pr_calculation(df, soc_threshold)
-        rows_excluded = len(df) - len(calc_df)
-    else:
-        calc_df = df.copy()
-        rows_excluded = 0
+    rows_excluded_high_soc = 0
+    rows_excluded_anomalous = 0
+    anomaly_filter_info = None
+    
+    # Start with a copy
+    calc_df = df.copy()
+    
+    # Apply anomalous data filter if enabled
+    if filter_anomalous:
+        calc_df, anomaly_filter_info = filter_anomalous_data(
+            calc_df, irradiance_threshold, power_threshold, soc_low_threshold
+        )
+        rows_excluded_anomalous = anomaly_filter_info.get('rows_excluded', 0)
+    
+    # Apply high SoC filter if enabled
+    if filter_high_soc and 'SoC_pct' in calc_df.columns:
+        before_count = len(calc_df)
+        calc_df = filter_for_pr_calculation(calc_df, soc_threshold)
+        rows_excluded_high_soc = before_count - len(calc_df)
     
     # Need actual power at minimum
     if 'Power_W' not in calc_df.columns:
@@ -147,8 +250,10 @@ def calculate_performance_ratio(
             'expected_energy_wh': None,
             'expected_energy_kwh': None,
             'rows_used': len(calc_df),
-            'rows_excluded_high_soc': rows_excluded,
+            'rows_excluded_high_soc': rows_excluded_high_soc,
+            'rows_excluded_anomalous': rows_excluded_anomalous,
             'soc_threshold': soc_threshold if filter_high_soc else None,
+            'anomaly_filter_info': anomaly_filter_info,
             'info': 'Irradiance not available - cannot calculate PR or expected energy'
         }
     
@@ -169,8 +274,10 @@ def calculate_performance_ratio(
         'expected_energy_wh': expected_energy_wh,
         'expected_energy_kwh': expected_energy_wh / 1000,
         'rows_used': len(calc_df),
-        'rows_excluded_high_soc': rows_excluded,
-        'soc_threshold': soc_threshold if filter_high_soc else None
+        'rows_excluded_high_soc': rows_excluded_high_soc,
+        'rows_excluded_anomalous': rows_excluded_anomalous,
+        'soc_threshold': soc_threshold if filter_high_soc else None,
+        'anomaly_filter_info': anomaly_filter_info
     }
 
 
@@ -190,10 +297,25 @@ def calculate_specific_yield(energy_kwh: float, installed_capacity_kwp: float) -
 def calculate_daily_metrics(
     df: pd.DataFrame,
     nominal_power_kw: float,
-    temp_coefficient: float
+    temp_coefficient: float,
+    filter_anomalous: bool = False,
+    irradiance_threshold: float = 50.0,
+    power_threshold: float = 0.0,
+    soc_low_threshold: float = 20.0,
+    soc_high_threshold: float = 95.0
 ) -> pd.DataFrame:
     """
     Calculate daily aggregated metrics.
+    
+    Args:
+        df: DataFrame with solar data
+        nominal_power_kw: System nominal power at STC (kW)
+        temp_coefficient: Power temperature coefficient
+        filter_anomalous: Whether to filter anomalous data (high irradiance, zero power)
+        irradiance_threshold: Min irradiance to consider as "should produce power"
+        power_threshold: Max power to consider as "not producing"
+        soc_low_threshold: SoC threshold for anomaly filter
+        soc_high_threshold: SoC threshold for high SoC exclusion in PR
     """
     if 'Date' not in df.columns:
         return pd.DataFrame()
@@ -201,33 +323,58 @@ def calculate_daily_metrics(
     daily_metrics = []
     
     for date, day_df in df.groupby('Date'):
-        # Calculate energies (include all data)
+        # Calculate power if not present
         day_with_power = day_df.copy()
         if 'Power_W' not in day_with_power.columns:
             day_with_power = calculate_power(day_with_power)
         day_with_power = calculate_expected_power(day_with_power, nominal_power_kw, temp_coefficient)
         
-        actual_energy_wh = calculate_energy(day_with_power, 'Power_W')
-        expected_energy_wh = calculate_energy(day_with_power, 'Expected_Power_W')
-        
-        # Calculate PR (excluding high SoC)
+        # Calculate PR with optional anomalous data filtering
+        # This also gives us the correct actual/expected energy for the filtered data
         pr_result = calculate_performance_ratio(
             day_with_power, nominal_power_kw, temp_coefficient,
-            filter_high_soc=True, soc_threshold=95.0
+            filter_high_soc=True, soc_threshold=soc_high_threshold,
+            filter_anomalous=filter_anomalous,
+            irradiance_threshold=irradiance_threshold,
+            power_threshold=power_threshold,
+            soc_low_threshold=soc_low_threshold
         )
+        
+        # Use energy values from PR calculation (which respects filtering)
+        # This ensures excluded timestamps don't contribute to expected energy
+        if filter_anomalous:
+            # When filtering is enabled, use the values from PR calculation
+            actual_energy_wh = pr_result.get('actual_energy_wh', 0)
+            expected_energy_wh = pr_result.get('expected_energy_wh', 0)
+        else:
+            # When not filtering, calculate from all data (original behavior)
+            actual_energy_wh = calculate_energy(day_with_power, 'Power_W')
+            expected_energy_wh = calculate_energy(day_with_power, 'Expected_Power_W')
+        
+        # Count anomalous points for reporting
+        anomalous_points = 0
+        if 'Irradiance_Wm2' in day_df.columns and 'Power_W' in day_df.columns:
+            high_irradiance = day_df['Irradiance_Wm2'] > irradiance_threshold
+            low_power = day_df['Power_W'] <= power_threshold
+            if 'SoC_pct' in day_df.columns:
+                low_soc = day_df['SoC_pct'] < soc_low_threshold
+                anomalous_points = (high_irradiance & low_power & low_soc).sum()
+            else:
+                anomalous_points = (high_irradiance & low_power).sum()
         
         metrics = {
             'Date': date,
-            'Actual_Energy_kWh': actual_energy_wh / 1000,
-            'Expected_Energy_kWh': expected_energy_wh / 1000,
+            'Actual_Energy_kWh': actual_energy_wh / 1000 if actual_energy_wh else 0,
+            'Expected_Energy_kWh': expected_energy_wh / 1000 if expected_energy_wh else 0,
             'PR_pct': pr_result['pr_value'],
-            'Specific_Yield_kWhkWp': calculate_specific_yield(actual_energy_wh / 1000, nominal_power_kw),
+            'Specific_Yield_kWhkWp': calculate_specific_yield(actual_energy_wh / 1000 if actual_energy_wh else 0, nominal_power_kw),
             'Avg_Irradiance': day_df[day_df['Hour'].between(6, 18)]['Irradiance_Wm2'].mean() if 'Irradiance_Wm2' in day_df.columns and 'Hour' in day_df.columns else (day_df['Irradiance_Wm2'].mean() if 'Irradiance_Wm2' in day_df.columns else None),
             'Avg_Temperature': day_df[day_df['Hour'].between(6, 18)]['Temperature_C'].mean() if 'Temperature_C' in day_df.columns and 'Hour' in day_df.columns else (day_df['Temperature_C'].mean() if 'Temperature_C' in day_df.columns else None),
             'Max_Power_kW': day_with_power['Power_kW'].max() if 'Power_kW' in day_with_power.columns else None,
             'Operating_Hours': calculate_operating_hours(day_with_power),
             'Data_Points': len(day_df),
-            'High_SoC_Points': (day_df['SoC_pct'] >= 95).sum() if 'SoC_pct' in day_df.columns else 0
+            'High_SoC_Points': (day_df['SoC_pct'] >= soc_high_threshold).sum() if 'SoC_pct' in day_df.columns else 0,
+            'Anomalous_Points': anomalous_points
         }
         daily_metrics.append(metrics)
     
@@ -237,10 +384,25 @@ def calculate_daily_metrics(
 def calculate_monthly_metrics(
     df: pd.DataFrame,
     nominal_power_kw: float,
-    temp_coefficient: float
+    temp_coefficient: float,
+    filter_anomalous: bool = False,
+    irradiance_threshold: float = 50.0,
+    power_threshold: float = 0.0,
+    soc_low_threshold: float = 20.0,
+    soc_high_threshold: float = 95.0
 ) -> pd.DataFrame:
     """
     Calculate monthly aggregated metrics.
+    
+    Args:
+        df: DataFrame with solar data
+        nominal_power_kw: System nominal power at STC (kW)
+        temp_coefficient: Power temperature coefficient
+        filter_anomalous: Whether to filter anomalous data (high irradiance, zero power)
+        irradiance_threshold: Min irradiance to consider as "should produce power"
+        power_threshold: Max power to consider as "not producing"
+        soc_low_threshold: SoC threshold for anomaly filter
+        soc_high_threshold: SoC threshold for high SoC exclusion in PR
     """
     if 'Month' not in df.columns:
         return pd.DataFrame()
@@ -248,27 +410,51 @@ def calculate_monthly_metrics(
     monthly_metrics = []
     
     for month, month_df in df.groupby('Month'):
-        # Calculate energies
+        # Calculate power if not present
         month_with_power = month_df.copy()
         if 'Power_W' not in month_with_power.columns:
             month_with_power = calculate_power(month_with_power)
         month_with_power = calculate_expected_power(month_with_power, nominal_power_kw, temp_coefficient)
         
-        actual_energy_wh = calculate_energy(month_with_power, 'Power_W')
-        expected_energy_wh = calculate_energy(month_with_power, 'Expected_Power_W')
-        
-        # Calculate PR (excluding high SoC)
+        # Calculate PR with optional anomalous data filtering
+        # This also gives us the correct actual/expected energy for the filtered data
         pr_result = calculate_performance_ratio(
             month_with_power, nominal_power_kw, temp_coefficient,
-            filter_high_soc=True, soc_threshold=95.0
+            filter_high_soc=True, soc_threshold=soc_high_threshold,
+            filter_anomalous=filter_anomalous,
+            irradiance_threshold=irradiance_threshold,
+            power_threshold=power_threshold,
+            soc_low_threshold=soc_low_threshold
         )
+        
+        # Use energy values from PR calculation (which respects filtering)
+        # This ensures excluded timestamps don't contribute to expected energy
+        if filter_anomalous:
+            # When filtering is enabled, use the values from PR calculation
+            actual_energy_wh = pr_result.get('actual_energy_wh', 0)
+            expected_energy_wh = pr_result.get('expected_energy_wh', 0)
+        else:
+            # When not filtering, calculate from all data (original behavior)
+            actual_energy_wh = calculate_energy(month_with_power, 'Power_W')
+            expected_energy_wh = calculate_energy(month_with_power, 'Expected_Power_W')
+        
+        # Count anomalous points for reporting
+        anomalous_points = 0
+        if 'Irradiance_Wm2' in month_df.columns and 'Power_W' in month_df.columns:
+            high_irradiance = month_df['Irradiance_Wm2'] > irradiance_threshold
+            low_power = month_df['Power_W'] <= power_threshold
+            if 'SoC_pct' in month_df.columns:
+                low_soc = month_df['SoC_pct'] < soc_low_threshold
+                anomalous_points = (high_irradiance & low_power & low_soc).sum()
+            else:
+                anomalous_points = (high_irradiance & low_power).sum()
         
         metrics = {
             'Month': str(month),
-            'Actual_Energy_kWh': actual_energy_wh / 1000,
-            'Expected_Energy_kWh': expected_energy_wh / 1000,
+            'Actual_Energy_kWh': actual_energy_wh / 1000 if actual_energy_wh else 0,
+            'Expected_Energy_kWh': expected_energy_wh / 1000 if expected_energy_wh else 0,
             'PR_pct': pr_result['pr_value'],
-            'Specific_Yield_kWhkWp': calculate_specific_yield(actual_energy_wh / 1000, nominal_power_kw),
+            'Specific_Yield_kWhkWp': calculate_specific_yield(actual_energy_wh / 1000 if actual_energy_wh else 0, nominal_power_kw),
             'Avg_Irradiance': month_df[month_df['Hour'].between(6, 18)]['Irradiance_Wm2'].mean() if 'Irradiance_Wm2' in month_df.columns and 'Hour' in month_df.columns else (month_df['Irradiance_Wm2'].mean() if 'Irradiance_Wm2' in month_df.columns else None),
             'Avg_Temperature': month_df[month_df['Hour'].between(6, 18)]['Temperature_C'].mean() if 'Temperature_C' in month_df.columns and 'Hour' in month_df.columns else (month_df['Temperature_C'].mean() if 'Temperature_C' in month_df.columns else None),
             'Max_Power_kW': month_with_power['Power_kW'].max() if 'Power_kW' in month_with_power.columns else None,
@@ -276,7 +462,8 @@ def calculate_monthly_metrics(
             'Avg_Operating_Hours': calculate_operating_hours(month_with_power) / month_df['Date'].nunique() if 'Date' in month_df.columns and month_df['Date'].nunique() > 0 else 0,
             'Days_with_Data': month_df['Date'].nunique() if 'Date' in month_df.columns else None,
             'Data_Points': len(month_df),
-            'High_SoC_Points': (month_df['SoC_pct'] >= 95).sum() if 'SoC_pct' in month_df.columns else 0
+            'High_SoC_Points': (month_df['SoC_pct'] >= soc_high_threshold).sum() if 'SoC_pct' in month_df.columns else 0,
+            'Anomalous_Points': anomalous_points
         }
         monthly_metrics.append(metrics)
     

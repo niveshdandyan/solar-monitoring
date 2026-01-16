@@ -297,7 +297,7 @@ def plot_weather_daily_summary(
     if daily_df is None or daily_df.empty:
         return None
     
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
     
     dates = range(len(daily_df))
     date_labels = [str(d)[:10] for d in daily_df['Date']]
@@ -315,6 +315,16 @@ def plot_weather_daily_summary(
     ax1.grid(True, alpha=0.3)
     ax1.set_facecolor('#f8f9fa')
     
+    # Set x-axis labels for temperature subplot too
+    if len(dates) <= 15:
+        ax1.set_xticks(dates)
+        ax1.set_xticklabels(date_labels, rotation=45, ha='right')
+    else:
+        step = max(1, len(dates) // 10)
+        ax1.set_xticks(dates[::step])
+        ax1.set_xticklabels(date_labels[::step], rotation=45, ha='right')
+    ax1.set_xlabel('Date', fontsize=11)
+    
     # Irradiance subplot
     if 'Total_Irradiance_kWhm2' in daily_df.columns:
         ax2.bar(dates, daily_df['Total_Irradiance_kWhm2'], color='#FF9800', alpha=0.7,
@@ -331,7 +341,7 @@ def plot_weather_daily_summary(
     ax2.grid(True, alpha=0.3, axis='y')
     ax2.set_facecolor('#f8f9fa')
     
-    # Set x-axis labels
+    # Set x-axis labels for irradiance subplot
     if len(dates) <= 15:
         ax2.set_xticks(dates)
         ax2.set_xticklabels(date_labels, rotation=45, ha='right')

@@ -25,7 +25,8 @@ from modules.calculations import (
     calculate_monthly_metrics,
     calculate_performance_ratio,
     calculate_performance_ratio,
-    get_all_anomalies
+    get_all_anomalies,
+    filter_anomalous_data
 )
 from modules.visualizations import (
     plot_daily_power_irradiance,
@@ -229,6 +230,35 @@ def main():
             help="Exclude data points where SoC is above this threshold from PR calculation"
         )
         
+        st.markdown("---")
+        st.subheader("📊 Data Filtering Settings")
+        st.caption("Filter out anomalous timestamps with high irradiance but no power output")
+        
+        irradiance_filter_threshold = st.number_input(
+            "Irradiance Threshold (W/m²)",
+            min_value=0.0,
+            max_value=1000.0,
+            value=50.0,
+            step=10.0,
+            help="Minimum irradiance to consider as 'should be producing power'. Timestamps with irradiance above this but zero power may be filtered."
+        )
+        
+        power_filter_threshold = st.number_input(
+            "Power Threshold (W)",
+            min_value=0.0,
+            max_value=100.0,
+            value=0.0,
+            step=1.0,
+            help="Maximum power to consider as 'not producing'. Default is 0W."
+        )
+        
+        soc_low_threshold = st.slider(
+            "Low SoC Threshold (%)",
+            min_value=50,
+            max_value=100,
+            value=95,
+            help="Only filter data when SoC is below this (if SoC data available). This avoids filtering battery-full curtailment situations."
+        )
     
         # Default constants for anomaly detection (UI removed)
         vmpp = 30.0
@@ -390,6 +420,9 @@ def main():
                     st.session_state.nominal_power = nominal_power
                     st.session_state.temp_coeff = temp_coeff_decimal
                     st.session_state.soc_threshold = soc_threshold
+                    st.session_state.irradiance_filter_threshold = irradiance_filter_threshold
+                    st.session_state.power_filter_threshold = power_filter_threshold
+                    st.session_state.soc_low_threshold = soc_low_threshold
                     
                     st.success("✅ Data processed successfully!")
                     st.rerun()
@@ -431,10 +464,15 @@ def display_analysis_results(vmpp: float, impp: float):
     temp_coeff = st.session_state.temp_coeff
     soc_threshold = st.session_state.soc_threshold
     
+    # Get filtering thresholds (with defaults for backward compatibility)
+    irradiance_filter_threshold = st.session_state.get('irradiance_filter_threshold', 50.0)
+    power_filter_threshold = st.session_state.get('power_filter_threshold', 0.0)
+    soc_low_threshold = st.session_state.get('soc_low_threshold', 20)
+    
     # Overview metrics
     st.subheader("📊 Performance Overview")
     
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
     
     with col1:
         if 'Actual_Energy_kWh' in daily_metrics.columns:
@@ -460,6 +498,11 @@ def display_analysis_results(vmpp: float, impp: float):
         if 'High_SoC_Points' in daily_metrics.columns:
             excluded = daily_metrics['High_SoC_Points'].sum()
             st.metric("High SoC Points", f"{excluded}")
+    
+    with col6:
+        if 'Anomalous_Points' in daily_metrics.columns:
+            anomalous = daily_metrics['Anomalous_Points'].sum()
+            st.metric("Anomalous Points", f"{int(anomalous)}", help="Timestamps with high irradiance but zero power")
     
     st.markdown("---")
     
@@ -499,7 +542,7 @@ def display_analysis_results(vmpp: float, impp: float):
         display_monthly_graphs(analysis_df, EXPORT_DIR)
     
     with tab3:
-        display_calendar_view(daily_metrics)
+        display_calendar_view(analysis_df, daily_metrics)
     
     with tab4:
         display_custom_range_graphs(analysis_df, EXPORT_DIR)
@@ -611,19 +654,47 @@ def display_monthly_graphs(analysis_df: pd.DataFrame, export_dir: str):
         st.warning("No months found in the data.")
         return
     
-    selected_month = st.selectbox(
-        "Select Month",
-        options=unique_months,
-        format_func=lambda x: str(x),
-        key="monthly_graphs_month"
-    )
+    col_sel1, col_sel2 = st.columns([2, 1])
+    with col_sel1:
+        selected_month = st.selectbox(
+            "Select Month",
+            options=unique_months,
+            format_func=lambda x: str(x),
+            key="monthly_graphs_month"
+        )
+    
+    with col_sel2:
+        data_mode = st.radio(
+            "Data Mode",
+            options=["All Data", "Filtered Data"],
+            horizontal=True,
+            key="monthly_data_mode",
+            help="Filtered Data excludes different anomalous timestamps (high irradiance, zero power)"
+        )
+    
+    # Get filtering thresholds from session state
+    irradiance_threshold = st.session_state.get('irradiance_filter_threshold', 50.0)
+    power_threshold = st.session_state.get('power_filter_threshold', 0.0)
+    soc_low_threshold = st.session_state.get('soc_low_threshold', 20)
+    
+    # Determine if filtering should be used
+    use_filtering = (data_mode == "Filtered Data")
+    
+    # Import the averaging function that supports filtering
+    from modules.visualizations import calculate_monthly_hourly_averages
     
     # First row: Power graphs
     col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("#### Avg Power & Irradiance")
-        fig = plot_monthly_hourly_power_irradiance(analysis_df, str(selected_month), export_dir, show_plot=True)
+        fig = plot_monthly_hourly_power_irradiance(
+            analysis_df, str(selected_month), export_dir, show_plot=True,
+            filter_anomalous=use_filtering,
+            irradiance_threshold=irradiance_threshold,
+            power_threshold=power_threshold,
+            soc_low_threshold=soc_low_threshold
+        )
         if fig:
             st.pyplot(fig)
         else:
@@ -632,7 +703,13 @@ def display_monthly_graphs(analysis_df: pd.DataFrame, export_dir: str):
     with col2:
         if 'SoC_pct' in analysis_df.columns:
             st.markdown("#### Avg Power, Irradiance & SoC")
-            fig = plot_monthly_hourly_power_irradiance_soc(analysis_df, str(selected_month), export_dir, show_plot=True)
+            fig = plot_monthly_hourly_power_irradiance_soc(
+                analysis_df, str(selected_month), export_dir, show_plot=True,
+                filter_anomalous=use_filtering,
+                irradiance_threshold=irradiance_threshold,
+                power_threshold=power_threshold,
+                soc_low_threshold=soc_low_threshold
+            )
             if fig:
                 st.pyplot(fig)
             else:
@@ -647,7 +724,13 @@ def display_monthly_graphs(analysis_df: pd.DataFrame, export_dir: str):
     with col3:
         if 'Voltage_V' in analysis_df.columns:
             st.markdown("#### Avg Voltage & Irradiance")
-            fig = plot_monthly_hourly_voltage_irradiance(analysis_df, str(selected_month), export_dir, show_plot=True)
+            fig = plot_monthly_hourly_voltage_irradiance(
+                analysis_df, str(selected_month), export_dir, show_plot=True,
+                filter_anomalous=use_filtering,
+                irradiance_threshold=irradiance_threshold,
+                power_threshold=power_threshold,
+                soc_low_threshold=soc_low_threshold
+            )
             if fig:
                 st.pyplot(fig)
             else:
@@ -658,13 +741,81 @@ def display_monthly_graphs(analysis_df: pd.DataFrame, export_dir: str):
     with col4:
         if 'Current_A' in analysis_df.columns:
             st.markdown("#### Avg Current & Irradiance")
-            fig = plot_monthly_hourly_current_irradiance(analysis_df, str(selected_month), export_dir, show_plot=True)
+            fig = plot_monthly_hourly_current_irradiance(
+                analysis_df, str(selected_month), export_dir, show_plot=True,
+                filter_anomalous=use_filtering,
+                irradiance_threshold=irradiance_threshold,
+                power_threshold=power_threshold,
+                soc_low_threshold=soc_low_threshold
+            )
             if fig:
                 st.pyplot(fig)
             else:
                 st.info("Insufficient data for this graph.")
         else:
             st.info("Current data not available.")
+    
+    # Show comparison section if filtering is enabled
+    if use_filtering:
+        st.markdown("---")
+        st.markdown("### 📊 Filtered Data Analysis")
+        
+        # Calculate filtered hourly averages to show stats
+        hourly_avg_filtered, filter_info = calculate_monthly_hourly_averages(
+            analysis_df, str(selected_month),
+            filter_anomalous=True,
+            irradiance_threshold=irradiance_threshold,
+            power_threshold=power_threshold,
+            soc_low_threshold=soc_low_threshold
+        )
+        
+        # Show filter summary
+        if filter_info.get('rows_excluded', 0) > 0:
+            st.info(f"""
+            📋 **Filtering Summary for {selected_month}**: Excluded **{filter_info['rows_excluded']:,}** of **{filter_info['rows_total']:,}** data points ({filter_info['exclusion_pct']:.1f}%)
+            
+            *Filter criteria: Irradiance > {irradiance_threshold} W/m², Power ≤ {power_threshold} W, SoC < {soc_low_threshold}%*
+            """)
+        else:
+            st.success("No anomalous data points found for this month.")
+        
+        # Show filtered power graphs
+        if len(hourly_avg_filtered) > 0 and 'Power_W' in hourly_avg_filtered.columns:
+            col5, col6 = st.columns(2)
+            
+            with col5:
+                st.markdown("#### Avg Power & Irradiance (Filtered)")
+                # Create a simple comparison plot
+                import matplotlib.pyplot as plt
+                
+                hourly_avg_all, _ = calculate_monthly_hourly_averages(analysis_df, str(selected_month))
+                
+                if len(hourly_avg_all) > 0:
+                    fig, ax = plt.subplots(figsize=(14, 7))
+                    ax.plot(hourly_avg_all['Hour'], hourly_avg_all['Power_W'], 
+                           'b-', linewidth=2, label='All Data', marker='o')
+                    ax.plot(hourly_avg_filtered['Hour'], hourly_avg_filtered['Power_W'], 
+                           'g-', linewidth=2, label='Filtered', marker='s')
+                    ax.set_xlabel('Hour of Day', fontsize=12, fontweight='bold')
+                    ax.set_ylabel('Average Power (W)', fontsize=12, fontweight='bold')
+                    ax.set_title(f'Power Comparison - {selected_month}', fontsize=14, fontweight='bold')
+                    ax.legend()
+                    ax.grid(True, alpha=0.3)
+                    st.pyplot(fig)
+                    plt.close(fig)
+            
+            with col6:
+                # Show difference statistics
+                st.markdown("#### Difference Summary")
+                if len(hourly_avg_all) > 0:
+                    avg_power_all = hourly_avg_all['Power_W'].mean()
+                    avg_power_filtered = hourly_avg_filtered['Power_W'].mean()
+                    power_diff = avg_power_filtered - avg_power_all
+                    power_diff_pct = (power_diff / avg_power_all * 100) if avg_power_all > 0 else 0
+                    
+                    st.metric("Avg Power (All Data)", f"{avg_power_all:.1f} W")
+                    st.metric("Avg Power (Filtered)", f"{avg_power_filtered:.1f} W", 
+                             delta=f"{power_diff_pct:+.1f}%")
 
 
 def display_custom_range_graphs(analysis_df: pd.DataFrame, export_dir: str):
@@ -749,6 +900,34 @@ def display_custom_range_graphs(analysis_df: pd.DataFrame, export_dir: str):
         st.caption(f"📅 Selected: **{len(selected_dates)} days**")
         use_range_mode = False
     
+    # Data mode selection
+    st.markdown("---")
+    col_mode, col_info = st.columns([1, 2])
+    
+    with col_mode:
+        data_mode = st.radio(
+            "Data Mode",
+            options=["All Data", "Filtered Data"],
+            horizontal=True,
+            key="custom_range_data_mode",
+            help="Filtered Data excludes anomalous timestamps (high irradiance, zero power)"
+        )
+    
+    # Get filtering thresholds from session state
+    irradiance_threshold = st.session_state.get('irradiance_filter_threshold', 50.0)
+    power_threshold = st.session_state.get('power_filter_threshold', 0.0)
+    soc_low_threshold = st.session_state.get('soc_low_threshold', 20)
+    
+    # Determine if filtering should be used
+    use_filtering = (data_mode == "Filtered Data")
+    
+    with col_info:
+        if use_filtering:
+            st.info(f"📋 Filter: Irradiance > {irradiance_threshold} W/m², Power ≤ {power_threshold} W, SoC < {soc_low_threshold}%")
+    
+    # Import visualization function
+    from modules.visualizations import calculate_selected_dates_hourly_averages
+    
     st.markdown("---")
     
     # First row: Power graphs
@@ -758,11 +937,19 @@ def display_custom_range_graphs(analysis_df: pd.DataFrame, export_dir: str):
         st.markdown("#### Avg Power & Irradiance")
         if use_range_mode:
             fig = plot_custom_range_hourly_power_irradiance(
-                analysis_df, str(start_date), str(end_date), export_dir, show_plot=True
+                analysis_df, str(start_date), str(end_date), export_dir, show_plot=True,
+                filter_anomalous=use_filtering,
+                irradiance_threshold=irradiance_threshold,
+                power_threshold=power_threshold,
+                soc_low_threshold=soc_low_threshold
             )
         else:
             fig = plot_selected_dates_hourly_power_irradiance(
-                analysis_df, selected_dates, export_dir, show_plot=True
+                analysis_df, selected_dates, export_dir, show_plot=True,
+                filter_anomalous=use_filtering,
+                irradiance_threshold=irradiance_threshold,
+                power_threshold=power_threshold,
+                soc_low_threshold=soc_low_threshold
             )
         if fig:
             st.pyplot(fig)
@@ -826,6 +1013,81 @@ def display_custom_range_graphs(analysis_df: pd.DataFrame, export_dir: str):
                 st.info("Insufficient data for this graph.")
         else:
             st.info("Current data not available.")
+    
+    # Show filtered data comparison if selected
+    if data_mode == "Filtered Data":
+        st.markdown("---")
+        st.markdown("### 📊 Filtered Data Analysis")
+        
+        # Get dates for filtering
+        if use_range_mode:
+            # Filter analysis_df to the date range
+            range_df = analysis_df[
+                (analysis_df['Date'] >= start_date) & 
+                (analysis_df['Date'] <= end_date)
+            ].copy()
+            dates_for_filter = list(range_df['Date'].unique())
+        else:
+            dates_for_filter = selected_dates
+        
+        # Calculate filtered and unfiltered hourly averages
+        hourly_avg_all, _ = calculate_selected_dates_hourly_averages(
+            analysis_df, dates_for_filter, 
+            filter_anomalous=False
+        )
+        hourly_avg_filtered, filter_info = calculate_selected_dates_hourly_averages(
+            analysis_df, dates_for_filter,
+            filter_anomalous=True,
+            irradiance_threshold=irradiance_threshold,
+            power_threshold=power_threshold,
+            soc_low_threshold=soc_low_threshold
+        )
+        
+        # Show filter summary
+        if filter_info.get('rows_excluded', 0) > 0:
+            st.info(f"""
+            📋 **Filtering Summary**: Excluded **{filter_info['rows_excluded']:,}** of **{filter_info['rows_total']:,}** data points ({filter_info['exclusion_pct']:.1f}%)
+            """)
+        else:
+            st.success("✅ No anomalous data points found in selected dates.")
+        
+        # Show comparison
+        if len(hourly_avg_filtered) > 0 and 'Power_W' in hourly_avg_filtered.columns and len(hourly_avg_all) > 0:
+            col5, col6 = st.columns(2)
+            
+            with col5:
+                st.markdown("#### Power Comparison (All vs Filtered)")
+                import matplotlib.pyplot as plt
+                
+                fig, ax = plt.subplots(figsize=(14, 7))
+                ax.plot(hourly_avg_all['Hour'], hourly_avg_all['Power_W'], 
+                       'b-', linewidth=2, label='All Data', marker='o')
+                ax.plot(hourly_avg_filtered['Hour'], hourly_avg_filtered['Power_W'], 
+                       'g-', linewidth=2, label='Filtered', marker='s')
+                ax.set_xlabel('Hour of Day', fontsize=12, fontweight='bold')
+                ax.set_ylabel('Average Power (W)', fontsize=12, fontweight='bold')
+                ax.set_title('Hourly Power Comparison', fontsize=14, fontweight='bold')
+                ax.legend()
+                ax.grid(True, alpha=0.3)
+                st.pyplot(fig)
+                plt.close(fig)
+            
+            with col6:
+                st.markdown("#### Difference Summary")
+                avg_power_all = hourly_avg_all['Power_W'].mean()
+                avg_power_filtered = hourly_avg_filtered['Power_W'].mean()
+                power_diff = avg_power_filtered - avg_power_all
+                power_diff_pct = (power_diff / avg_power_all * 100) if avg_power_all > 0 else 0
+                
+                st.metric("Avg Power (All Data)", f"{avg_power_all:.1f} W")
+                st.metric("Avg Power (Filtered)", f"{avg_power_filtered:.1f} W", 
+                         delta=f"{power_diff_pct:+.1f}%")
+                
+                if 'Irradiance_Wm2' in hourly_avg_all.columns and 'Irradiance_Wm2' in hourly_avg_filtered.columns:
+                    avg_irr_all = hourly_avg_all['Irradiance_Wm2'].mean()
+                    avg_irr_filtered = hourly_avg_filtered['Irradiance_Wm2'].mean()
+                    st.metric("Avg Irradiance (All)", f"{avg_irr_all:.1f} W/m²")
+                    st.metric("Avg Irradiance (Filtered)", f"{avg_irr_filtered:.1f} W/m²")
 
 
 def display_pr_yield_graphs(analysis_df, daily_metrics, monthly_metrics, export_dir):
@@ -833,44 +1095,175 @@ def display_pr_yield_graphs(analysis_df, daily_metrics, monthly_metrics, export_
     
     st.subheader("📊 Performance Ratio & Yield Analysis")
     
-    col1, col2 = st.columns(2)
+    # Data mode selection
+    data_mode = st.radio(
+        "Data Mode",
+        options=["All Data", "Filtered Data", "Both (Comparison)"],
+        horizontal=True,
+        help="All Data: Include all timestamps. Filtered Data: Exclude anomalous timestamps (high irradiance but zero power). Both: Show side-by-side comparison."
+    )
     
-    with col1:
-        st.markdown("#### Performance Ratio Trend")
-        fig = plot_pr_trend(daily_metrics, export_dir, show_plot=True)
-        if fig:
-            st.pyplot(fig)
-        else:
-            st.info("Insufficient data for PR trend.")
+    # Get filtering thresholds from session state
+    irradiance_threshold = st.session_state.get('irradiance_filter_threshold', 50.0)
+    power_threshold = st.session_state.get('power_filter_threshold', 0.0)
+    soc_low_threshold = st.session_state.get('soc_low_threshold', 20)
+    soc_threshold = st.session_state.get('soc_threshold', 95)
+    nominal_power = st.session_state.get('nominal_power', 5.0)
+    temp_coeff = st.session_state.get('temp_coeff', -0.004)
     
-    with col2:
-        st.markdown("#### Specific Yield Over Time")
-        fig = plot_specific_yield_trend(daily_metrics, export_dir, show_plot=True)
-        if fig:
-            st.pyplot(fig)
-        else:
-            st.info("Insufficient data for Specific Yield.")
+    # Calculate filtered metrics if needed
+    if data_mode in ["Filtered Data", "Both (Comparison)"]:
+        # Calculate filtered metrics
+        filtered_daily_metrics = calculate_daily_metrics(
+            analysis_df, nominal_power, temp_coeff,
+            filter_anomalous=True,
+            irradiance_threshold=irradiance_threshold,
+            power_threshold=power_threshold,
+            soc_low_threshold=soc_low_threshold,
+            soc_high_threshold=soc_threshold
+        )
+        filtered_monthly_metrics = calculate_monthly_metrics(
+            analysis_df, nominal_power, temp_coeff,
+            filter_anomalous=True,
+            irradiance_threshold=irradiance_threshold,
+            power_threshold=power_threshold,
+            soc_low_threshold=soc_low_threshold,
+            soc_high_threshold=soc_threshold
+        )
+        
+        # Calculate filter summary
+        total_anomalous = daily_metrics['Anomalous_Points'].sum() if 'Anomalous_Points' in daily_metrics.columns else 0
+        total_points = daily_metrics['Data_Points'].sum() if 'Data_Points' in daily_metrics.columns else 1
+        exclusion_pct = (total_anomalous / total_points * 100) if total_points > 0 else 0
+        
+        st.info(f"""
+        📋 **Filtering Summary**: Excluded **{int(total_anomalous):,}** of **{int(total_points):,}** data points ({exclusion_pct:.1f}%)
+        
+        *Filter criteria: Irradiance > {irradiance_threshold} W/m², Power ≤ {power_threshold} W, SoC < {soc_low_threshold}%*
+        """)
     
-    st.markdown("---")
-    
-    col3, col4 = st.columns(2)
-    
-    with col3:
-        st.markdown("#### Expected vs Actual Yield")
-        fig = plot_expected_vs_actual(daily_metrics, export_dir, show_plot=True)
-        if fig:
-            st.pyplot(fig)
-        else:
-            st.info("Insufficient data for comparison.")
-    
-    with col4:
-        if len(monthly_metrics) > 0:
-            st.markdown("#### Monthly Summary")
-            fig = plot_monthly_summary(monthly_metrics, export_dir, show_plot=True)
+    if data_mode == "All Data":
+        # Show all-data graphs
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### Performance Ratio Trend")
+            fig = plot_pr_trend(daily_metrics, export_dir, show_plot=True)
             if fig:
                 st.pyplot(fig)
             else:
-                st.info("Insufficient data for monthly summary.")
+                st.info("Insufficient data for PR trend.")
+        
+        with col2:
+            st.markdown("#### Specific Yield Over Time")
+            fig = plot_specific_yield_trend(daily_metrics, export_dir, show_plot=True)
+            if fig:
+                st.pyplot(fig)
+            else:
+                st.info("Insufficient data for Specific Yield.")
+        
+        st.markdown("---")
+        
+        col3, col4 = st.columns(2)
+        
+        with col3:
+            st.markdown("#### Expected vs Actual Yield")
+            fig = plot_expected_vs_actual(daily_metrics, export_dir, show_plot=True)
+            if fig:
+                st.pyplot(fig)
+            else:
+                st.info("Insufficient data for comparison.")
+        
+        with col4:
+            if len(monthly_metrics) > 0:
+                st.markdown("#### Monthly Summary")
+                fig = plot_monthly_summary(monthly_metrics, export_dir, show_plot=True)
+                if fig:
+                    st.pyplot(fig)
+                else:
+                    st.info("Insufficient data for monthly summary.")
+    
+    elif data_mode == "Filtered Data":
+        # Show filtered-data graphs
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### Performance Ratio Trend (Filtered)")
+            fig = plot_pr_trend(filtered_daily_metrics, export_dir, title_suffix=" (Filtered)", show_plot=True)
+            if fig:
+                st.pyplot(fig)
+            else:
+                st.info("Insufficient data for PR trend.")
+        
+        with col2:
+            st.markdown("#### Specific Yield Over Time (Filtered)")
+            fig = plot_specific_yield_trend(filtered_daily_metrics, export_dir, show_plot=True)
+            if fig:
+                st.pyplot(fig)
+            else:
+                st.info("Insufficient data for Specific Yield.")
+        
+        st.markdown("---")
+        
+        col3, col4 = st.columns(2)
+        
+        with col3:
+            st.markdown("#### Expected vs Actual Yield (Filtered)")
+            fig = plot_expected_vs_actual(filtered_daily_metrics, export_dir, show_plot=True)
+            if fig:
+                st.pyplot(fig)
+            else:
+                st.info("Insufficient data for comparison.")
+        
+        with col4:
+            if len(filtered_monthly_metrics) > 0:
+                st.markdown("#### Monthly Summary (Filtered)")
+                fig = plot_monthly_summary(filtered_monthly_metrics, export_dir, show_plot=True)
+                if fig:
+                    st.pyplot(fig)
+                else:
+                    st.info("Insufficient data for monthly summary.")
+    
+    else:  # Both (Comparison)
+        # Show comparison - All Data on left, Filtered on right
+        st.markdown("### All Data vs Filtered Data Comparison")
+        
+        # PR comparison
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("#### PR Trend (All Data)")
+            all_avg_pr = daily_metrics['PR_pct'].mean() if 'PR_pct' in daily_metrics.columns else 0
+            st.caption(f"Average PR: **{all_avg_pr:.1f}%**")
+            fig = plot_pr_trend(daily_metrics, export_dir, show_plot=True)
+            if fig:
+                st.pyplot(fig)
+        
+        with col2:
+            st.markdown("#### PR Trend (Filtered)")
+            filtered_avg_pr = filtered_daily_metrics['PR_pct'].mean() if 'PR_pct' in filtered_daily_metrics.columns else 0
+            pr_diff = filtered_avg_pr - all_avg_pr
+            st.caption(f"Average PR: **{filtered_avg_pr:.1f}%** ({'+' if pr_diff >= 0 else ''}{pr_diff:.1f}%)")
+            fig = plot_pr_trend(filtered_daily_metrics, export_dir, title_suffix=" (Filtered)", show_plot=True)
+            if fig:
+                st.pyplot(fig)
+        
+        st.markdown("---")
+        
+        # Monthly summary comparison
+        col3, col4 = st.columns(2)
+        with col3:
+            if len(monthly_metrics) > 0:
+                st.markdown("#### Monthly Summary (All Data)")
+                fig = plot_monthly_summary(monthly_metrics, export_dir, show_plot=True)
+                if fig:
+                    st.pyplot(fig)
+        
+        with col4:
+            if len(filtered_monthly_metrics) > 0:
+                st.markdown("#### Monthly Summary (Filtered)")
+                fig = plot_monthly_summary(filtered_monthly_metrics, export_dir, show_plot=True)
+                if fig:
+                    st.pyplot(fig)
 
 
 def display_temperature_graphs(analysis_df, export_dir):
@@ -911,7 +1304,7 @@ def display_temperature_graphs(analysis_df, export_dir):
                 st.info("Insufficient data for this date.")
 
 
-def display_calendar_view(daily_metrics):
+def display_calendar_view(analysis_df, daily_metrics):
     """Display calendar view with color-coded daily metrics and anomaly detection."""
     
     st.subheader("📅 Calendar View - Daily Performance")
@@ -919,6 +1312,14 @@ def display_calendar_view(daily_metrics):
     if len(daily_metrics) == 0:
         st.warning("No daily metrics available.")
         return
+    
+    # Get filtering thresholds from session state
+    irradiance_threshold = st.session_state.get('irradiance_filter_threshold', 50.0)
+    power_threshold = st.session_state.get('power_filter_threshold', 0.0)
+    soc_low_threshold = st.session_state.get('soc_low_threshold', 20)
+    soc_threshold = st.session_state.get('soc_threshold', 95)
+    nominal_power = st.session_state.get('nominal_power', 5.0)
+    temp_coeff = st.session_state.get('temp_coeff', -0.004)
     
     # Anomaly Summary Cards
     st.markdown("### 📊 Recent Performance")
@@ -952,18 +1353,55 @@ def display_calendar_view(daily_metrics):
     # Calendar Views
     st.markdown("### 📆 Calendar Heatmaps")
     
-    calendar_type = st.radio(
-        "Select Calendar View",
-        options=['energy', 'pr', 'anomaly'],
-        format_func=lambda x: {
-            'energy': '⚡ Daily Energy (kWh)',
-            'pr': '📊 Performance Ratio (%)',
-            'anomaly': '🔍 Anomaly Status'
-        }[x],
-        horizontal=True
-    )
+    col_view, col_filter = st.columns([2, 1])
     
-    fig = plot_calendar_heatmap(daily_metrics, metric=calendar_type, show_plot=True)
+    with col_view:
+        calendar_type = st.radio(
+            "Select Calendar View",
+            options=['energy', 'pr', 'anomaly'],
+            format_func=lambda x: {
+                'energy': '⚡ Daily Energy (kWh)',
+                'pr': '📊 Performance Ratio (%)',
+                'anomaly': '🔍 Anomaly Status'
+            }[x],
+            horizontal=True,
+            key="calendar_view_type"
+        )
+    
+    with col_filter:
+        # Show data mode only when PR is selected
+        if calendar_type == 'pr':
+            data_mode = st.radio(
+                "Data Mode",
+                options=["All Data", "Filtered Data"],
+                horizontal=True,
+                key="calendar_data_mode",
+                help="Filtered Data excludes anomalous timestamps (high irradiance, zero power)"
+            )
+        else:
+            data_mode = "All Data"
+    
+    # Use filtered metrics if PR view and Filtered Data selected
+    metrics_to_use = daily_metrics
+    if calendar_type == 'pr' and data_mode == "Filtered Data":
+        # Recalculate with filtering
+        filtered_metrics = calculate_daily_metrics(
+            analysis_df, nominal_power, temp_coeff,
+            filter_anomalous=True,
+            irradiance_threshold=irradiance_threshold,
+            power_threshold=power_threshold,
+            soc_low_threshold=soc_low_threshold,
+            soc_high_threshold=soc_threshold
+        )
+        metrics_to_use = filtered_metrics
+        
+        # Show filter info
+        total_anomalous = daily_metrics['Anomalous_Points'].sum() if 'Anomalous_Points' in daily_metrics.columns else 0
+        total_points = daily_metrics['Data_Points'].sum() if 'Data_Points' in daily_metrics.columns else 1
+        exclusion_pct = (total_anomalous / total_points * 100) if total_points > 0 else 0
+        st.info(f"📋 **Filtered**: Excluded {int(total_anomalous):,} data points ({exclusion_pct:.1f}%) | Thresholds: Irradiance > {irradiance_threshold} W/m², Power ≤ {power_threshold} W")
+    
+    fig = plot_calendar_heatmap(metrics_to_use, metric=calendar_type, show_plot=True)
     if fig:
         st.pyplot(fig)
     else:
@@ -2086,14 +2524,102 @@ def display_weather_analysis(export_dir: str):
             
             st.markdown("---")
             st.markdown("#### Daily Summary")
-            fig = plot_weather_daily_summary(daily_df, export_dir, show_plot=True)
-            if fig:
-                st.pyplot(fig)
+            st.caption("View temperature range and irradiance for a selected date range")
+            
+            # Date range selection for daily summary
+            col_ds1, col_ds2 = st.columns(2)
+            unique_dates = sorted(daily_df['Date'].unique())
+            min_summary_date = min(unique_dates)
+            max_summary_date = max(unique_dates)
+            
+            with col_ds1:
+                summary_start = st.date_input(
+                    "Start Date",
+                    value=min_summary_date,
+                    min_value=min_summary_date,
+                    max_value=max_summary_date,
+                    key="weather_summary_start"
+                )
+            with col_ds2:
+                summary_end = st.date_input(
+                    "End Date",
+                    value=max_summary_date,
+                    min_value=min_summary_date,
+                    max_value=max_summary_date,
+                    key="weather_summary_end"
+                )
+            
+            # Filter daily_df for selected range
+            import datetime as dt
+            summary_df = daily_df[
+                (daily_df['Date'] >= summary_start) & 
+                (daily_df['Date'] <= summary_end)
+            ].copy()
+            
+            if len(summary_df) > 0:
+                days_selected = len(summary_df)
+                st.caption(f"📅 Showing {days_selected} days ({summary_start} to {summary_end})")
+                
+                fig = plot_weather_daily_summary(summary_df, export_dir, show_plot=True)
+                if fig:
+                    st.pyplot(fig)
+            else:
+                st.warning("No data in selected date range.")
             
             st.markdown("---")
             st.markdown("#### 📆 Calendar Month Averages")
             st.caption("Compare seasonal patterns across different months (Jan, Feb, Mar, etc.)")
-            fig = plot_weather_calendar_month_averages(hourly_df, daily_df, export_dir, show_plot=True)
+            
+            # Time of day selection for calendar month averages
+            time_mode = st.selectbox(
+                "Time of Day Filter",
+                options=["24 Hours (All Day)", "Daytime Only", "Nighttime Only"],
+                key="weather_calendar_time_mode",
+                help="Daytime: between sunrise and sunset. Nighttime: before sunrise and after sunset. Uses actual sunrise/sunset times from weather data."
+            )
+            
+            # Filter data based on time of day selection
+            filtered_hourly = hourly_df.copy()
+            
+            if time_mode == "Daytime Only" or time_mode == "Nighttime Only":
+                # Merge sunrise/sunset from daily_df
+                if 'Sunrise' in daily_df.columns and 'Sunset' in daily_df.columns:
+                    # Add Date column to hourly if not present
+                    if 'Date' not in filtered_hourly.columns:
+                        filtered_hourly['Date'] = pd.to_datetime(filtered_hourly['Timestamp']).dt.date
+                    
+                    daytime_mask = []
+                    for idx, row in filtered_hourly.iterrows():
+                        date = row['Date']
+                        hour = row['Hour']
+                        
+                        # Get sunrise/sunset for this date
+                        daily_row = daily_df[daily_df['Date'] == date]
+                        if not daily_row.empty and pd.notna(daily_row.iloc[0].get('Sunrise')) and pd.notna(daily_row.iloc[0].get('Sunset')):
+                            sunrise_hour = daily_row.iloc[0]['Sunrise'].hour
+                            sunset_hour = daily_row.iloc[0]['Sunset'].hour
+                            is_daytime = sunrise_hour <= hour <= sunset_hour
+                        else:
+                            # Default to 6 AM - 6 PM if no sunrise/sunset data
+                            is_daytime = 6 <= hour <= 18
+                        daytime_mask.append(is_daytime)
+                    
+                    if time_mode == "Daytime Only":
+                        filtered_hourly = filtered_hourly[daytime_mask].copy()
+                        st.caption("🌅 Showing daytime hours only (based on sunrise/sunset times)")
+                    else:
+                        filtered_hourly = filtered_hourly[~pd.Series(daytime_mask, index=filtered_hourly.index)].copy()
+                        st.caption("🌙 Showing nighttime hours only (before sunrise and after sunset)")
+                else:
+                    # Fallback if no sunrise/sunset data
+                    if time_mode == "Daytime Only":
+                        filtered_hourly = filtered_hourly[(filtered_hourly['Hour'] >= 6) & (filtered_hourly['Hour'] <= 18)].copy()
+                        st.caption("🌅 Showing daytime hours (6 AM - 6 PM, sunrise/sunset data not available)")
+                    else:
+                        filtered_hourly = filtered_hourly[(filtered_hourly['Hour'] < 6) | (filtered_hourly['Hour'] > 18)].copy()
+                        st.caption("🌙 Showing nighttime hours (before 6 AM and after 6 PM)")
+            
+            fig = plot_weather_calendar_month_averages(filtered_hourly, daily_df, export_dir, show_plot=True)
             if fig:
                 st.pyplot(fig)
             else:
