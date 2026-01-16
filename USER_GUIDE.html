@@ -1414,58 +1414,345 @@ Filter criteria:
             <section id="pr-analysis">
                 <h2>13. Performance Ratio & Yield Analysis</h2>
 
-                <p>Navigate to the <strong>📊 PR & Yield Analysis</strong> tab for long-term performance trends.</p>
+                <p>Navigate to the <strong>📊 PR & Yield Analysis</strong> tab for long-term performance trends. This
+                    section provides the most critical metrics for evaluating your solar system's health and financial
+                    performance over time.</p>
 
                 <figure class="screenshot">
-                    <img src="docs/images/pr_analysis.png" alt="PR Analysis">
-                    <figcaption>Figure 5: PR & Yield Analysis - Trend charts, Expected vs Actual, and Monthly
-                        Summary
+                    <img src="docs/images/pr_analysis.png" alt="PR Analysis Overview">
+                    <figcaption>Figure 5: PR & Yield Analysis - Overview showing all four analysis panels
                     </figcaption>
                 </figure>
 
-                <h3>13.1 Performance Ratio Trend (Top Left)</h3>
-                <p>This chart shows how your system's efficiency changes over time.</p>
+                <!-- 13.0 Understanding the Key Metrics -->
+                <h3>13.0 Understanding the Key Metrics</h3>
 
+                <h4>What is Performance Ratio (PR)?</h4>
+                <p>Performance Ratio is the <strong>gold standard metric</strong> for evaluating solar system
+                    efficiency. It answers the question: "Of all the energy my system <em>should</em> produce given the
+                    available sunlight, how much did it <em>actually</em> produce?"</p>
+
+                <pre>
+Formula:
+PR = (Actual Energy Output / Theoretical Maximum Energy) × 100%
+
+Where Theoretical Maximum = (Irradiance / 1000) × Nominal Power × Time
+                </pre>
+
+                <div class="alert alert-important">
+                    <strong>Key Insight:</strong> PR <strong>normalizes for weather conditions</strong>. A system with
+                    80% PR on a cloudy day and 80% PR on a sunny day is performing equally well—even though the sunny
+                    day produced more energy. This makes PR ideal for comparing performance across different days,
+                    months, or even different sites.
+                </div>
+
+                <h4>What is Specific Yield?</h4>
+                <p>Specific Yield (also called "Energy Yield") measures <strong>energy production per unit of installed
+                        capacity</strong>. It answers: "How many kWh did each kW of my system produce?"</p>
+
+                <pre>
+Formula:
+Specific Yield = Actual Energy (kWh) / Nominal Power (kWp)
+
+Units: kWh/kWp (also written as "hours of full-sun equivalent")
+                </pre>
+
+                <p>For example, a 5 kWp system that produced 25 kWh has a specific yield of 5 kWh/kWp for that day.</p>
+
+                <!-- 13.1 Performance Ratio Trend -->
+                <h3>13.1 Performance Ratio Trend (Top Left)</h3>
+
+                <figure class="screenshot">
+                    <img src="docs/images/pr_trend_graph.png" alt="Performance Ratio Trend Graph">
+                    <figcaption>Figure 5a: Daily Performance Ratio Trend - Shows PR variation over time with visual
+                        benchmarks</figcaption>
+                </figure>
+
+                <p>This chart shows how your system's efficiency changes over time. Each data point represents one
+                    day's PR value.</p>
+
+                <h4>Reading the Graph</h4>
+                <ul>
+                    <li><strong>X-axis</strong>: Date (daily resolution)</li>
+                    <li><strong>Y-axis</strong>: Performance Ratio (%)</li>
+                    <li><strong>Blue line/dots</strong>: Daily PR values</li>
+                    <li><strong>Horizontal colored bands</strong>: Performance benchmarks (see table below)</li>
+                </ul>
+
+                <h4>Performance Benchmarks</h4>
                 <table>
                     <thead>
                         <tr>
                             <th>PR Range</th>
                             <th>Performance Level</th>
+                            <th>What It Means</th>
                             <th>Recommended Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><strong>80%+</strong></td>
-                            <td>Excellent</td>
-                            <td>System performing optimally</td>
+                            <td>🟢 Excellent</td>
+                            <td>System is performing at or near optimal efficiency</td>
+                            <td>System performing optimally—maintain current practices</td>
                         </tr>
                         <tr>
                             <td><strong>70-80%</strong></td>
-                            <td>Good</td>
-                            <td>Normal operation</td>
+                            <td>🟡 Good</td>
+                            <td>Typical range for well-maintained residential systems</td>
+                            <td>Normal operation—no immediate action needed</td>
                         </tr>
                         <tr>
                             <td><strong>60-70%</strong></td>
-                            <td>Fair</td>
-                            <td>Investigate potential issues</td>
+                            <td>🟠 Fair</td>
+                            <td>Some efficiency loss; may indicate minor issues</td>
+                            <td>Investigate: Check for soiling, shading, or minor faults</td>
                         </tr>
                         <tr>
                             <td><strong>Below 60%</strong></td>
-                            <td>Poor</td>
-                            <td>Immediate inspection recommended</td>
+                            <td>🔴 Poor</td>
+                            <td>Significant underperformance; revenue loss likely</td>
+                            <td>Immediate inspection recommended—check inverters, wiring, panels</td>
                         </tr>
                     </tbody>
                 </table>
 
+                <h4>Common PR Patterns and Their Causes</h4>
+                <ul>
+                    <li><strong>Consistent 75-85%</strong>: Normal, healthy system with typical losses</li>
+                    <li><strong>Gradual decline over months</strong>: May indicate panel degradation or soiling
+                        buildup</li>
+                    <li><strong>Sudden drop</strong>: Fault condition—check inverter errors, breaker trips</li>
+                    <li><strong>Day-to-day variation (10-15%)</strong>: Normal, often due to cloud patterns and
+                        temperature</li>
+                    <li><strong>Seasonal variation</strong>: Summer often shows lower PR (heat losses), winter may show
+                        higher PR</li>
+                    <li><strong>Spike above 100%</strong>: Usually a data quality issue (sensor errors) or exceptional
+                        conditions</li>
+                </ul>
+
+                <div class="alert alert-tip">
+                    <strong>💡 Pro Tip:</strong> Focus on the <em>trend</em> rather than individual days. A consistent
+                    75% PR is better than volatile swings between 60% and 90%.
+                </div>
+
+                <!-- 13.2 Specific Yield Over Time -->
                 <h3>13.2 Specific Yield Over Time (Top Right)</h3>
-                <p>Shows energy production per unit of installed capacity with cumulative tracking.</p>
 
+                <figure class="screenshot">
+                    <img src="docs/images/specific_yield_graph.png" alt="Specific Yield Graph">
+                    <figcaption>Figure 5b: Specific Yield Over Time - Daily energy production normalized by system size
+                    </figcaption>
+                </figure>
+
+                <p>Shows energy production per unit of installed capacity with cumulative tracking. This metric is
+                    essential for <strong>financial analysis</strong> because energy production = revenue.</p>
+
+                <h4>Reading the Graph</h4>
+                <ul>
+                    <li><strong>Bar chart</strong>: Daily specific yield (kWh/kWp)</li>
+                    <li><strong>Line overlay</strong>: Cumulative specific yield over the period</li>
+                </ul>
+
+                <h4>Typical Specific Yield Values</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Climate / Location</th>
+                            <th>Daily Average</th>
+                            <th>Annual Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Tropical (Singapore, Malaysia)</td>
+                            <td>3.5-4.5 kWh/kWp</td>
+                            <td>1,300-1,650 kWh/kWp</td>
+                        </tr>
+                        <tr>
+                            <td>Sub-tropical (Hong Kong, Taiwan)</td>
+                            <td>3.0-4.0 kWh/kWp</td>
+                            <td>1,100-1,500 kWh/kWp</td>
+                        </tr>
+                        <tr>
+                            <td>Temperate (Japan, Europe)</td>
+                            <td>2.5-3.5 kWh/kWp</td>
+                            <td>900-1,300 kWh/kWp</td>
+                        </tr>
+                        <tr>
+                            <td>Desert (Middle East, Australia)</td>
+                            <td>4.5-6.0 kWh/kWp</td>
+                            <td>1,650-2,200 kWh/kWp</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4>Use Cases for Specific Yield</h4>
+                <ul>
+                    <li><strong>Warranty verification</strong>: Manufacturers often guarantee minimum annual yield</li>
+                    <li><strong>Financial projections</strong>: Multiply by your kWp to estimate monthly revenue</li>
+                    <li><strong>Site comparison</strong>: Compare performance across different installations</li>
+                    <li><strong>Seasonal planning</strong>: Understand when energy production peaks</li>
+                </ul>
+
+                <!-- 13.3 Expected vs. Actual Yield -->
                 <h3>13.3 Expected vs. Actual Yield (Bottom Left)</h3>
-                <p>Compares theoretical maximum output against actual production to identify underperformance.</p>
 
+                <figure class="screenshot">
+                    <img src="docs/images/expected_vs_actual_graph.png" alt="Expected vs Actual Yield Graph">
+                    <figcaption>Figure 5c: Expected vs. Actual Yield - Identifies underperformance gaps</figcaption>
+                </figure>
+
+                <p>Compares theoretical maximum output against actual production to identify underperformance. This is
+                    the most direct way to <strong>quantify energy losses</strong>.</p>
+
+                <h4>Understanding the Calculation</h4>
+                <pre>
+Expected Yield = Σ (Irradiance × Nominal Power × Temperature Correction × Time Interval)
+
+Gap = Expected Yield - Actual Yield
+
+If Gap > 0: System is underperforming
+If Gap ≈ 0: System is performing as expected
+If Gap < 0: System is outperforming (rare; check data quality)
+                </pre>
+
+                <h4>Reading the Graph</h4>
+                <ul>
+                    <li><strong>Blue bars/line</strong>: Expected yield (what you <em>should</em> produce)</li>
+                    <li><strong>Orange/Red bars/line</strong>: Actual yield (what you <em>did</em> produce)</li>
+                    <li><strong>Gap between lines</strong>: Energy loss (in kWh)</li>
+                </ul>
+
+                <h4>Interpreting the Gap</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Gap Size</th>
+                            <th>Interpretation</th>
+                            <th>Possible Causes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>0-10%</strong></td>
+                            <td>Normal system losses</td>
+                            <td>Wiring, inverter efficiency, module mismatch</td>
+                        </tr>
+                        <tr>
+                            <td><strong>10-20%</strong></td>
+                            <td>Moderate losses</td>
+                            <td>Soiling, minor shading, suboptimal orientation</td>
+                        </tr>
+                        <tr>
+                            <td><strong>20-30%</strong></td>
+                            <td>Significant losses</td>
+                            <td>Major shading, inverter issues, failed strings</td>
+                        </tr>
+                        <tr>
+                            <td><strong>>30%</strong></td>
+                            <td>Severe underperformance</td>
+                            <td>System fault, disconnected strings, inverter failure</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="alert alert-warning">
+                    <strong>⚠️ Note:</strong> The expected yield calculation assumes ideal conditions. Real-world
+                    factors like inverter clipping, cable losses, and module degradation mean a 5-15% gap is often
+                    normal.
+                </div>
+
+                <!-- 13.4 Monthly Summary -->
                 <h3>13.4 Monthly Summary (Bottom Right)</h3>
-                <p>Four-panel summary showing monthly trends for energy, PR, yield, and conditions.</p>
+
+                <figure class="screenshot">
+                    <img src="docs/images/monthly_summary_charts.png" alt="Monthly Summary Charts">
+                    <figcaption>Figure 5d: Monthly Summary - Four-panel view of key monthly trends</figcaption>
+                </figure>
+
+                <p>A four-panel summary showing monthly trends for energy, PR, yield, and conditions. This is your
+                    <strong>"executive dashboard"</strong> for quick health checks.
+                </p>
+
+                <h4>The Four Panels</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Panel</th>
+                            <th>Metric</th>
+                            <th>What to Look For</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Monthly Energy</strong></td>
+                            <td>Total kWh produced each month</td>
+                            <td>Seasonal patterns; sudden drops indicate problems</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Monthly PR</strong></td>
+                            <td>Average PR for each month</td>
+                            <td>Should be relatively stable (±5%); decline indicates degradation</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Monthly Yield</strong></td>
+                            <td>Specific yield (kWh/kWp) per month</td>
+                            <td>Compare to regional benchmarks</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Conditions</strong></td>
+                            <td>Average irradiance and temperature</td>
+                            <td>Context for understanding energy variations</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- 13.5 Advanced Use Cases -->
+                <h3>13.5 Advanced Use Cases</h3>
+
+                <h4>13.5.1 Warranty Claims</h4>
+                <p>Use PR & Yield data to support warranty claims:</p>
+                <ul>
+                    <li>Document sustained underperformance below manufacturer guarantees</li>
+                    <li>Compare measured vs. datasheet specifications</li>
+                    <li>Provide timestamped evidence of performance issues</li>
+                </ul>
+
+                <h4>13.5.2 Financial Modeling</h4>
+                <p>Use specific yield data to:</p>
+                <ul>
+                    <li>Project annual revenue based on actual (not estimated) performance</li>
+                    <li>Calculate payback period adjustments</li>
+                    <li>Assess investment returns for different system sizes</li>
+                </ul>
+
+                <h4>13.5.3 O&M Prioritization</h4>
+                <p>Use the data to prioritize maintenance:</p>
+                <ul>
+                    <li>Systems with declining PR should be scheduled for inspection first</li>
+                    <li>Compare multiple sites to identify worst performers</li>
+                    <li>Track the impact of cleaning or repairs on PR recovery</li>
+                </ul>
+
+                <!-- 13.6 Best Practices -->
+                <h3>13.6 Best Practices for PR & Yield Analysis</h3>
+
+                <ol>
+                    <li><strong>Analyze at least 30 days</strong> of data for meaningful trends</li>
+                    <li><strong>Compare year-over-year</strong> rather than month-to-month to account for seasonal
+                        variation</li>
+                    <li><strong>Use filtered data</strong> (see Data Filtering section) to exclude anomalous points</li>
+                    <li><strong>Document baseline PR</strong> when system is new and clean as a reference</li>
+                    <li><strong>Investigate drops >10%</strong> from baseline promptly</li>
+                    <li><strong>Export data monthly</strong> for long-term record keeping</li>
+                </ol>
+
+                <div class="alert alert-tip">
+                    <strong>💡 Pro Tip:</strong> Print or save the Monthly Summary view as a PDF each month. Over time,
+                    you'll build a valuable performance history for your system.
+                </div>
+
             </section>
 
             <!-- Section 14: Temperature Effects -->
