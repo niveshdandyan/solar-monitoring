@@ -1473,7 +1473,8 @@ Filter criteria:
                 <h2>14. Temperature Effect Analysis</h2>
 
                 <p>Navigate to the <strong>🌡️ Temperature Effects</strong> tab to understand how heat impacts your
-                    panels.</p>
+                    panels. This is one of the most critical analyses for understanding real-world solar panel
+                    performance.</p>
 
                 <figure class="screenshot">
                     <img src="docs/images/temperature_effects.png" alt="Temperature Effects">
@@ -1481,16 +1482,361 @@ Filter criteria:
                         correlation</figcaption>
                 </figure>
 
-                <h3>14.1 Overall Temperature Effect (Left)</h3>
+                <!-- 14.1 Fundamentals -->
+                <h3>14.1 The Physics: Why Temperature Matters</h3>
+
+                <p>Solar panels are <strong>semiconductor devices</strong>, and like all semiconductors, their
+                    efficiency changes with temperature. Understanding this relationship is fundamental to accurate
+                    performance analysis.</p>
+
+                <h4>14.1.1 The Temperature-Power Relationship</h4>
+                <p>When a solar panel heats up:</p>
+                <ul>
+                    <li><strong>Band gap decreases</strong>: The energy required to free electrons reduces, which
+                        sounds beneficial but actually...</li>
+                    <li><strong>Open-circuit voltage (Voc) drops significantly</strong>: This is the dominant effect,
+                        typically -0.3% to -0.5% per °C</li>
+                    <li><strong>Short-circuit current (Isc) increases slightly</strong>: About +0.04% to +0.06% per °C
+                    </li>
+                    <li><strong>Net effect is power loss</strong>: The voltage drop far outweighs the current gain</li>
+                </ul>
+
+                <div class="alert alert-important">
+                    <strong>Key Insight:</strong> A typical crystalline silicon panel loses <strong>0.4% to 0.5% of its
+                        power output for every 1°C increase</strong> above 25°C (Standard Test Conditions). On a hot
+                    45°C day, this means <strong>8-10% less power</strong> than the nameplate rating!
+                </div>
+
+                <h4>14.1.2 The Temperature Coefficient</h4>
+                <p>Every solar panel has a <strong>Power Temperature Coefficient (γ)</strong>, expressed as %/°C. This
+                    value tells you exactly how much power you lose per degree of temperature rise.</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Panel Technology</th>
+                            <th>Typical Coefficient</th>
+                            <th>Performance in Heat</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Monocrystalline Silicon</td>
+                            <td>-0.35% to -0.45%/°C</td>
+                            <td>Good</td>
+                        </tr>
+                        <tr>
+                            <td>Polycrystalline Silicon</td>
+                            <td>-0.40% to -0.50%/°C</td>
+                            <td>Moderate</td>
+                        </tr>
+                        <tr>
+                            <td>Thin-Film (CdTe)</td>
+                            <td>-0.20% to -0.25%/°C</td>
+                            <td>Excellent</td>
+                        </tr>
+                        <tr>
+                            <td>Thin-Film (CIGS)</td>
+                            <td>-0.30% to -0.40%/°C</td>
+                            <td>Very Good</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4>14.1.3 Cell Temperature vs. Ambient Temperature</h4>
+                <p>Your panel's <strong>cell temperature</strong> is typically <strong>20-35°C higher</strong> than the
+                    ambient air temperature when operating in sunlight. This is due to:</p>
+                <ul>
+                    <li><strong>Solar absorption</strong>: Panels absorb ~85% of incident light, converting only ~20% to
+                        electricity; the rest becomes heat</li>
+                    <li><strong>Limited cooling</strong>: Natural convection and radiation can't remove heat fast enough
+                    </li>
+                    <li><strong>Installation conditions</strong>: Roof-mounted panels with poor ventilation run even
+                        hotter</li>
+                </ul>
+
+                <!-- 14.2 Visualizations -->
+                <h3>14.2 Understanding the Visualizations</h3>
+
+                <h4>14.2.1 Overall Temperature Effect (Left Plot)</h4>
                 <p>This scatter plot shows power output vs. cell temperature for your entire dataset.</p>
                 <ul>
                     <li>Each <strong>dot</strong> represents one data reading</li>
                     <li><strong>Color gradient</strong> indicates irradiance (yellow/red = higher)</li>
-                    <li><strong>Trend line</strong> shows the temperature effect coefficient</li>
+                    <li><strong>Trend line (red)</strong> shows the measured temperature effect coefficient</li>
+                    <li><strong>R² value</strong> indicates how well temperature explains power variation</li>
                 </ul>
 
-                <h3>14.2 Daily Temperature Effect (Right)</h3>
-                <p>Select a specific date to analyze temperature effects for that day only.</p>
+                <div class="alert alert-tip">
+                    <strong>💡 How to Read:</strong> A steeper downward slope means your panels are more sensitive to
+                    heat. Compare the measured coefficient to your panel's datasheet value!
+                </div>
+
+                <h4>14.2.2 Daily Temperature Effect (Right Plot)</h4>
+                <p>Select a specific date to analyze temperature effects for that day only. This is useful because:</p>
+                <ul>
+                    <li>Eliminates seasonal variations in sun angle</li>
+                    <li>Shows the pure temperature effect without other confounding factors</li>
+                    <li>Helps identify abnormal days (e.g., partial shading, soiling)</li>
+                </ul>
+
+                <!-- 14.3 Use Cases -->
+                <h3>14.3 Practical Use Cases</h3>
+
+                <h4>14.3.1 Validating Panel Specifications</h4>
+                <p>Compare your <strong>measured temperature coefficient</strong> to the manufacturer's datasheet value:
+                </p>
+                <ul>
+                    <li><strong>If measured ≈ datasheet</strong>: Panel is performing as expected</li>
+                    <li><strong>If measured > datasheet (more negative)</strong>: Panel may be degrading or have quality
+                        issues</li>
+                    <li><strong>If measured < datasheet (less negative)</strong>: Could indicate measurement errors or
+                                unusually good performance</li>
+                </ul>
+
+                <h4>14.3.2 Quantifying Hot-Climate Losses</h4>
+                <p>For installations in hot climates (Middle East, Southeast Asia, Australia), this analysis helps you:
+                </p>
+                <ul>
+                    <li>Calculate actual energy losses due to heat</li>
+                    <li>Justify investments in cooling solutions (e.g., better ventilation, water cooling)</li>
+                    <li>Compare performance across different seasons</li>
+                </ul>
+
+                <h4>14.3.3 System Design Optimization</h4>
+                <p>Use the data to inform future installations:</p>
+                <ul>
+                    <li><strong>Mounting orientation</strong>: Ground-mounted systems often run 5-10°C cooler than
+                        roof-mounted</li>
+                    <li><strong>Panel selection</strong>: Choose panels with better temperature coefficients for hot
+                        locations</li>
+                    <li><strong>Ventilation design</strong>: Data can justify the cost of adding airflow gaps</li>
+                </ul>
+
+                <h4>14.3.4 Detecting Panel Degradation</h4>
+                <p>Over time, if the measured temperature coefficient becomes significantly worse than the original
+                    value, it may indicate:</p>
+                <ul>
+                    <li>Cell-level degradation</li>
+                    <li>Encapsulant yellowing (common in cheaper panels)</li>
+                    <li>Micro-crack development</li>
+                </ul>
+
+                <!-- 14.4 Advantages -->
+                <h3>14.4 Advantages of This Analysis</h3>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Advantage</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Non-Invasive</strong></td>
+                            <td>Uses existing monitoring data—no additional sensors or downtime required</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Continuous Monitoring</strong></td>
+                            <td>Can track changes over months/years to detect slow degradation</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Site-Specific</strong></td>
+                            <td>Reflects actual operating conditions, not lab conditions</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Financially Actionable</strong></td>
+                            <td>Quantifies energy losses in kWh, which translates directly to revenue loss</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Benchmarking</strong></td>
+                            <td>Compare performance across different sites, panel brands, or installation types</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- 14.5 Limitations -->
+                <h3>14.5 Limitations & Caveats</h3>
+
+                <div class="alert alert-warning">
+                    <strong>⚠️ Important:</strong> This analysis has inherent limitations that you should understand
+                    before drawing conclusions.
+                </div>
+
+                <h4>14.5.1 Confounding Variables</h4>
+                <p>Temperature is <strong>not the only factor</strong> affecting power output. Other variables that
+                    change with temperature include:</p>
+                <ul>
+                    <li><strong>Irradiance</strong>: Hot days often have higher irradiance; the analysis must normalize
+                        for this</li>
+                    <li><strong>Air Mass</strong>: Sun angle changes throughout the day, affecting spectral content</li>
+                    <li><strong>Soiling</strong>: Dust accumulation may correlate with dry/hot periods</li>
+                    <li><strong>Inverter efficiency</strong>: Inverters also have temperature-dependent efficiency</li>
+                </ul>
+
+                <h4>14.5.2 Sensor Accuracy</h4>
+                <p>The reliability of this analysis depends heavily on your temperature sensor:</p>
+                <ul>
+                    <li><strong>Sensor placement</strong>: Backsheet sensor vs. ambient sensor give very different
+                        readings</li>
+                    <li><strong>Calibration</strong>: Cheap sensors may drift over time</li>
+                    <li><strong>Response time</strong>: Fast-changing clouds can cause temperature/power mismatches</li>
+                </ul>
+
+                <h4>14.5.3 Limited Temperature Range</h4>
+                <p>If your data only covers a narrow temperature range (e.g., 25-35°C), the statistical analysis will be
+                    <strong>less reliable</strong>. A wider range (e.g., 15-55°C) provides more robust conclusions.
+                </p>
+
+                <h4>14.5.4 Non-Linear Effects</h4>
+                <p>At extreme temperatures (>60°C or <5°C), the relationship may become non-linear, but this analysis
+                        assumes a linear model.</p>
+
+                        <!-- 14.6 False Positives -->
+                        <h3>14.6 False Positives & Misinterpretations</h3>
+
+                        <p>Be aware of these common pitfalls when interpreting temperature effect data:</p>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Observation</th>
+                                    <th>Possible False Conclusion</th>
+                                    <th>Actual Cause</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Worse-than-expected coefficient</td>
+                                    <td>"Panel is degraded"</td>
+                                    <td>May be sensor error, partial shading, or incorrect datasheet value</td>
+                                </tr>
+                                <tr>
+                                    <td>Coefficient changes day-to-day</td>
+                                    <td>"Panel is unstable"</td>
+                                    <td>Normal—daily variation due to irradiance, clouds, wind cooling</td>
+                                </tr>
+                                <tr>
+                                    <td>Low R² value</td>
+                                    <td>"Temperature doesn't matter"</td>
+                                    <td>Other factors (shading, soiling) may be dominating; doesn't mean temperature is
+                                        irrelevant</td>
+                                </tr>
+                                <tr>
+                                    <td>Positive coefficient (power increases with temp)</td>
+                                    <td>"Great panel!"</td>
+                                    <td>Almost certainly a measurement error or data quality issue</td>
+                                </tr>
+                                <tr>
+                                    <td>Very steep coefficient (e.g., -1%/°C)</td>
+                                    <td>"Panel is defective"</td>
+                                    <td>Check if temperature sensor is measuring air instead of cell temperature</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- 14.7 Data Interpretation -->
+                        <h3>14.7 What Can Be Deduced From the Data?</h3>
+
+                        <h4>14.7.1 Energy Loss Quantification</h4>
+                        <p>Using the measured coefficient, you can calculate exact energy losses:</p>
+                        <pre>
+Example Calculation:
+- Measured coefficient: -0.42%/°C
+- Average operating temperature: 45°C
+- Temperature above STC (25°C): 20°C
+- Power loss: 20 × 0.42% = 8.4%
+
+If your system produces 100 kWh/day at STC:
+→ Actual output ≈ 91.6 kWh/day
+→ Daily loss = 8.4 kWh
+→ Annual loss ≈ 3,066 kWh
+→ At $0.15/kWh = $460/year in lost revenue
+                </pre>
+
+                        <h4>14.7.2 Seasonal Performance Patterns</h4>
+                        <p>Compare temperature effects across seasons:</p>
+                        <ul>
+                            <li><strong>Summer</strong>: Higher losses expected; if losses are extreme, investigate
+                                ventilation</li>
+                            <li><strong>Winter</strong>: Lower losses; if still high, may indicate degradation</li>
+                            <li><strong>Shoulder seasons</strong>: Best for benchmarking "true" performance</li>
+                        </ul>
+
+                        <h4>14.7.3 Comparing Multiple Systems</h4>
+                        <p>If you have data from multiple installations:</p>
+                        <ul>
+                            <li>Compare coefficients to identify best-performing sites</li>
+                            <li>Investigate mounting differences that may explain variations</li>
+                            <li>Use as evidence to negotiate with equipment suppliers</li>
+                        </ul>
+
+                        <!-- 14.8 Who Benefits -->
+                        <h3>14.8 Who Benefits From This Analysis?</h3>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User Type</th>
+                                    <th>Primary Benefit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Homeowners</strong></td>
+                                    <td>Understand why summer production is lower than expected; justify shade
+                                        structures or
+                                        ventilation improvements</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Commercial Operators</strong></td>
+                                    <td>Quantify thermal losses for financial modeling; compare actual vs. predicted
+                                        performance</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>O&M Teams</strong></td>
+                                    <td>Detect early signs of panel degradation; prioritize maintenance based on
+                                        data</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Researchers</strong></td>
+                                    <td>Validate panel technology claims; study real-world vs. lab performance</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Installers</strong></td>
+                                    <td>Demonstrate installation quality to clients; optimize future designs</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Investors</strong></td>
+                                    <td>Due diligence on solar assets; verify performance warranties</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- 14.9 Best Practices -->
+                        <h3>14.9 Best Practices for Accurate Analysis</h3>
+
+                        <ol>
+                            <li><strong>Use backsheet temperature sensors</strong> rather than ambient temperature for
+                                accurate
+                                cell temperature</li>
+                            <li><strong>Collect data across all seasons</strong> to capture the full temperature range
+                            </li>
+                            <li><strong>Filter out low-irradiance data</strong> (e.g., <200 W/m²) to avoid noise</li>
+                            <li><strong>Check for outliers</strong> that may indicate sensor issues or shading events
+                            </li>
+                            <li><strong>Compare to manufacturer specs</strong> only after ensuring data quality</li>
+                            <li><strong>Track trends over years</strong> to detect slow degradation</li>
+                        </ol>
+
+                        <div class="alert alert-tip">
+                            <strong>💡 Pro Tip:</strong> If your measured coefficient is consistently worse than the
+                            datasheet
+                            value by more than 20%, investigate your sensor setup before concluding the panel is
+                            underperforming.
+                        </div>
+
             </section>
 
             <!-- Section 15: Data Quality -->
