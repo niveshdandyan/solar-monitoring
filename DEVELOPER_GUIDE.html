@@ -277,6 +277,8 @@
                 <li><a href="#visualizations">Visualizations Module</a></li>
                 <li><a href="#data-quality">Data Quality Module</a></li>
                 <li><a href="#weather-api">Weather API Module</a></li>
+                <li><a href="#power-anomaly">Power Anomaly Logic</a></li>
+                <li><a href="#dynamic-daytime">Dynamic Daytime Logic</a></li>
                 <li><a href="#customization">Customization Guide</a></li>
                 <li><a href="#adding-tabs">Adding New Tabs</a></li>
                 <li><a href="#adding-columns">Adding New Column Types</a></li>
@@ -472,6 +474,7 @@ solar-monitoring/
                 <li><strong>parse_data()</strong> reads CSV, auto-detects columns</li>
                 <li><strong>prepare_analysis_data()</strong> standardizes column names, adds derived columns</li>
                 <li><strong>calculate_daily_metrics()</strong> aggregates by date</li>
+                <li><strong>Anomaly Filtering</strong> (if enabled) excludes low-power/high-irradiance points</li>
                 <li><strong>calculate_monthly_metrics()</strong> aggregates by month</li>
                 <li><strong>Data stored in <code>st.session_state</code></strong> for persistence</li>
                 <li><strong>display_*() functions</strong> render tabs with visualizations</li>
@@ -485,8 +488,9 @@ st.session_state.column_mapping    # dict: Original → Standardized column name
 st.session_state.daily_metrics     # DataFrame: Daily aggregates
 st.session_state.monthly_metrics   # DataFrame: Monthly aggregates
 st.session_state.nominal_power     # float: System kWp
-st.session_state.temp_coeff        # float: Temperature coefficient
-st.session_state.soc_threshold     # float: SoC threshold for PR
+st.session_state.daytime_config    # dict: {mode, start_hour, end_hour, use_weather}
+st.session_state.filtering_settings # dict: {irradiance_threshold, power_threshold, soc_threshold}
+st.session_state.anomalous_data_filtered # bool: True if filtering is active in current view
 st.session_state.view_mode         # str: 'data_analysis' or 'weather_analysis'
             </pre>
         </section>
@@ -583,6 +587,16 @@ df['Power_W'] = df['Current_A'] * df['Voltage_V']
 #   - 'expected_energy_kwh': Total theoretical energy
 #   - 'points_used': Number of data points
 #   - 'points_excluded': Points excluded (high SoC)
+            </pre>
+
+            <h4>filter_anomalous_data(df, irradiance_threshold, power_threshold, soc_threshold)</h4>
+            <p>New in v1.1. Filters out "zero power during high irradiance" events.</p>
+            <pre>
+# Logic:
+# Exclude row IF:
+#   Irradiance > irradiance_threshold (default 50)
+#   AND Power <= power_threshold (default 0)
+#   AND SoC < soc_threshold (default 95, checks battery not full)
             </pre>
 
             <h4>calculate_daily_metrics(df, nominal_power_kw, temp_coefficient)</h4>
@@ -767,7 +781,9 @@ validate_data_ranges(
     soc_range: Tuple[float, float] = (0, 100)
 ) -> Dict
             </pre>
-            <p>Checks if values fall within physically realistic ranges.</p>
+            <p>Checks if values fall within physically realistic ranges. <strong>Note:</strong> In v1.1+, this
+                calculates basic statistics (min/max/mean) and reports "out of range" counts but does not hard-fail or
+                exclude data automatically. It serves as a quality indicator.</p>
 
             <h4>get_data_quality_report()</h4>
             <p>Combines all checks into a comprehensive report dictionary.</p>
@@ -832,11 +848,65 @@ extract_coordinates_from_url(url: str) -> Tuple[Optional[float], Optional[float]
             </pre>
         </section>
 
-        <!-- Section 11: Customization Guide -->
-        <section id="customization">
-            <h2>11. Customization Guide</h2>
+        <!-- Section 11: Power Anomaly Logic -->
+        <section id="power-anomaly">
+            <h2>11. Power Anomaly Detection Logic</h2>
+            <div class="file-path">modules/calculations.py</div> (within data filtering)
 
-            <h3>11.1 Changing Default Values</h3>
+            <p>The system identifies specific timestamps where the system is underperforming using a 3-condition logic.
+            </p>
+
+            <h3>11.1 Detection Algorithm</h3>
+            <pre>
+def is_anomalous(row):
+    # 1. Sufficient sunlight?
+    has_sun = row['Irradiance'] > IRRADIANCE_THRESHOLD (e.g., 50 W/m²)
+    
+    # 2. No power output?
+    no_power = row['Power'] <= POWER_THRESHOLD (e.g., 0 W)
+    
+    # 3. Battery capability? (If SoC data exists)
+    battery_not_full = row['SoC'] < SOC_THRESHOLD (e.g., 95%)
+    
+    return has_sun and no_power and battery_not_full
+            </pre>
+
+            <h3>11.2 Integration</h3>
+            <p>This logic is applied in:</p>
+            <ul>
+                <li><strong>Performance Overview</strong>: To calculate the "Anomalous Points" metric.</li>
+                <li><strong>PR Analysis</strong>: To optionally exclude these points from PR calculation.</li>
+                <li><strong>Visualizations</strong>: To highlight red points in the Scatter Plot and Timeline.</li>
+            </ul>
+        </section>
+
+        <!-- Section 12: Dynamic Daytime -->
+        <section id="dynamic-daytime">
+            <h2>12. Dynamic Daytime Logic</h2>
+            <div class="file-path">modules/visualizations.py</div>
+            <div class="file-path">app.py</div>
+
+            <p>To improve accuracy of "Average Irradiance" and "Specific Yield", the system dynamically determines
+                daytime hours.</p>
+
+            <h3>12.1 Configuration Flow</h3>
+            <ol>
+                <li><strong>User Input</strong>: Sets location (Lat/Lon) in Weather Tab or Sidebar.</li>
+                <li><strong>API Fetch</strong>: App fetches daily <code>sunrise</code> and <code>sunset</code> times
+                    from Open-Meteo.</li>
+                <li><strong>Session State</strong>: Stores a lookup dict <code>{date: (start_hour, end_hour)}</code> in
+                    <code>st.session_state.daytime_config</code>.
+                </li>
+                <li><strong>Calculation</strong>: Metrics functions check this config. If available, they use the
+                    specific hours for that date. If not, they fallback to 6 AM - 6 PM.</li>
+            </ol>
+        </section>
+
+        <!-- Section 13: Customization Guide -->
+        <section id="customization">
+            <h2>13. Customization Guide</h2>
+
+            <h3>13.1 Changing Default Values</h3>
             <p>Edit these values in <code>app.py</code>:</p>
             <pre>
 # Sidebar defaults (in main() function)
@@ -857,7 +927,7 @@ temp_coeff = st.number_input(
 )
             </pre>
 
-            <h3>11.2 Changing Colors</h3>
+            <h3>13.2 Changing Colors</h3>
             <p>Global color scheme in <code>visualizations.py</code>:</p>
             <pre>
 # Common colors used throughout
@@ -872,7 +942,7 @@ COLORS = {
 }
             </pre>
 
-            <h3>11.3 Changing Export Settings</h3>
+            <h3>13.3 Changing Export Settings</h3>
             <pre>
 # In visualizations.py, change DPI for higher quality exports
 fig.savefig(filepath, dpi=150, bbox_inches='tight')
@@ -880,9 +950,9 @@ fig.savefig(filepath, dpi=150, bbox_inches='tight')
             </pre>
         </section>
 
-        <!-- Section 12: Adding New Tabs -->
+        <!-- Section 14: Adding New Tabs -->
         <section id="adding-tabs">
-            <h2>12. Adding New Tabs</h2>
+            <h2>14. Adding New Tabs</h2>
 
             <h3>Step-by-Step Guide</h3>
 
@@ -928,9 +998,9 @@ with tabNEW:
             </pre>
         </section>
 
-        <!-- Section 13: Adding Column Types -->
+        <!-- Section 15: Adding New Column Types -->
         <section id="adding-columns">
-            <h2>13. Adding New Column Types</h2>
+            <h2>15. Adding New Column Types</h2>
 
             <h4>Step 1: Add Pattern to data_parser.py</h4>
             <pre>
@@ -955,9 +1025,9 @@ return {
             </pre>
         </section>
 
-        <!-- Section 14: Adding Graphs -->
+        <!-- Section 16: Adding New Graphs -->
         <section id="adding-graphs">
-            <h2>14. Adding New Graphs</h2>
+            <h2>16. Adding New Graphs</h2>
 
             <h3>Template for New Visualization</h3>
             <pre>
@@ -1029,11 +1099,11 @@ def plot_my_custom_chart(
             </pre>
         </section>
 
-        <!-- Section 15: Deployment -->
+        <!-- Section 17: Deployment -->
         <section id="deployment">
-            <h2>15. Deployment</h2>
+            <h2>17. Deployment</h2>
 
-            <h3>15.1 Local Development</h3>
+            <h3>17.1 Local Development</h3>
             <pre>
 # Install dependencies
 pip install -r requirements.txt
