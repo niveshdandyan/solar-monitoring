@@ -1708,35 +1708,9 @@ If Gap < 0: System is outperforming (rare; check data quality)
                     </tbody>
                 </table>
 
-                <!-- 13.5 Advanced Use Cases -->
-                <h3>13.5 Advanced Use Cases</h3>
 
-                <h4>13.5.1 Warranty Claims</h4>
-                <p>Use PR & Yield data to support warranty claims:</p>
-                <ul>
-                    <li>Document sustained underperformance below manufacturer guarantees</li>
-                    <li>Compare measured vs. datasheet specifications</li>
-                    <li>Provide timestamped evidence of performance issues</li>
-                </ul>
-
-                <h4>13.5.2 Financial Modeling</h4>
-                <p>Use specific yield data to:</p>
-                <ul>
-                    <li>Project annual revenue based on actual (not estimated) performance</li>
-                    <li>Calculate payback period adjustments</li>
-                    <li>Assess investment returns for different system sizes</li>
-                </ul>
-
-                <h4>13.5.3 O&M Prioritization</h4>
-                <p>Use the data to prioritize maintenance:</p>
-                <ul>
-                    <li>Systems with declining PR should be scheduled for inspection first</li>
-                    <li>Compare multiple sites to identify worst performers</li>
-                    <li>Track the impact of cleaning or repairs on PR recovery</li>
-                </ul>
-
-                <!-- 13.6 Best Practices -->
-                <h3>13.6 Best Practices for PR & Yield Analysis</h3>
+                <!-- 13.5 Best Practices -->
+                <h3>13.5 Best Practices for PR & Yield Analysis</h3>
 
                 <ol>
                     <li><strong>Analyze at least 30 days</strong> of data for meaningful trends</li>
@@ -2526,24 +2500,443 @@ If your system produces 100 kWh/day at STC:
                 <section id="troubleshooting">
                     <h2>15. Troubleshooting</h2>
 
-                    <h3>15.1 Common Issues</h3>
+                    <p>This section covers common issues users may encounter when using the Solar Panel Monitoring
+                        System, organized by category. Each issue includes symptoms, likely causes, and step-by-step
+                        solutions.</p>
 
-                    <h3>"Please upload a file or paste data to process"</h3>
-                    <p><strong>Solution:</strong> Upload a CSV file or paste data, then click "🚀 Process Data"</p>
+                    <!-- 15.1 Data Upload & Processing Issues -->
+                    <h3>15.1 Data Upload & Processing Issues</h3>
 
-                    <h3>Power values showing "None" or 0</h3>
-                    <p><strong>Solution:</strong> Check that your column headers match expected formats. Verify column
-                        detection shows ✅ for current and voltage.</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">Issue / Symptom</th>
+                                <th style="width: 25%;">Likely Cause</th>
+                                <th style="width: 50%;">Solution</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>"Please upload a file or paste data"</strong></td>
+                                <td>No data provided before clicking Process</td>
+                                <td>Upload a CSV file using the file uploader OR paste data into the text area, THEN
+                                    click "🚀 Process Data"</td>
+                            </tr>
+                            <tr>
+                                <td><strong>File upload fails silently</strong></td>
+                                <td>File too large or unsupported format</td>
+                                <td>Ensure file is CSV format and under 200MB. If Excel, save as CSV first. Check file
+                                    is not corrupted.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>"Error parsing data" message</strong></td>
+                                <td>Malformed CSV or encoding issues</td>
+                                <td>Open file in Excel/Notepad, check for special characters. Save with UTF-8 encoding.
+                                    Ensure consistent column count per row.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Pasted data not recognized</strong></td>
+                                <td>Delimiter mismatch or missing headers</td>
+                                <td>Paste must be tab or comma separated. First row should be column headers. Try
+                                    copying directly from Excel.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Data processing hangs/slow</strong></td>
+                                <td>Very large dataset (millions of rows)</td>
+                                <td>For datasets >1 million rows, consider splitting by month. 1-minute data for a year
+                                    = 525,600 rows (normal).</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Timestamp not recognized</strong></td>
+                                <td>Non-standard date format</td>
+                                <td>Use ISO format (YYYY-MM-DD HH:MM:SS) or common formats. Avoid Excel serial dates.
+                                    Check for mixed formats.</td>
+                            </tr>
+                        </tbody>
+                    </table>
 
-                    <h3>Performance Ratio showing very low values</h3>
-                    <p><strong>Solution:</strong> Verify your Nominal Power setting is in kWp (not W). Check if voltage
-                        was
-                        auto-converted from mV.</p>
+                    <!-- 15.2 Column Detection Issues -->
+                    <h3>15.2 Column Detection Issues</h3>
 
-                    <h3>No graphs appearing</h3>
-                    <p><strong>Solution:</strong> Ensure your data has all required columns (Timestamp, Current,
-                        Voltage,
-                        Irradiance) and at least one full day of readings.</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">Issue / Symptom</th>
+                                <th style="width: 25%;">Likely Cause</th>
+                                <th style="width: 50%;">Solution</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Column shows ❌ (not detected)</strong></td>
+                                <td>Header name doesn't match patterns</td>
+                                <td>Rename column to standard names: "Current", "Voltage", "Irradiance", "Temperature",
+                                    "SoC", "Timestamp"</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Wrong column detected</strong></td>
+                                <td>Ambiguous column naming</td>
+                                <td>Use specific names like "DC_Voltage" not just "V". The system uses regex patterns;
+                                    more specific names reduce false matches.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Current shows as Voltage</strong></td>
+                                <td>Column header contains both terms</td>
+                                <td>Rename to unambiguous header. E.g., "Panel_Current_A" instead of "I/V Sensor
+                                    Current"</td>
+                            </tr>
+                            <tr>
+                                <td><strong>SoC not detected</strong></td>
+                                <td>Non-standard battery column name</td>
+                                <td>Rename to "SoC", "Battery_SoC", or "State_of_Charge". Column must contain "%"
+                                    character or "soc" keyword.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Temperature detected but wrong sensor</strong></td>
+                                <td>Multiple temperature columns in data</td>
+                                <td>The system picks the first match. Rename the cell/module temperature column to
+                                    "Cell_Temp" or "T_Cell".</td>
+                            </tr>
+                            <tr>
+                                <td><strong>All columns show ❌</strong></td>
+                                <td>Header row missing or on wrong line</td>
+                                <td>Ensure first row of CSV contains headers. Remove any blank rows above headers. Check
+                                    for BOM characters.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- 15.3 Calculation Issues -->
+                    <h3>15.3 Calculation & Metrics Issues</h3>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">Issue / Symptom</th>
+                                <th style="width: 25%;">Likely Cause</th>
+                                <th style="width: 50%;">Solution</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Power shows 0 or None</strong></td>
+                                <td>Current or Voltage column missing</td>
+                                <td>Check column detection shows ✅ for both Current and Voltage. Power = Current ×
+                                    Voltage.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Power values unrealistically high</strong></td>
+                                <td>Unit mismatch (mV instead of V)</td>
+                                <td>Check if voltage is in mV. The system auto-converts if values >100, but verify.
+                                    Expected: 12-60V for most systems.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>PR shows very low (&lt;40%)</strong></td>
+                                <td>Nominal Power set incorrectly</td>
+                                <td>Verify Nominal Power is in kWp, not Watts. A 100W panel = 0.1 kWp. Check sidebar
+                                    settings.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>PR shows &gt;100%</strong></td>
+                                <td>Measurement errors or temp coefficient wrong</td>
+                                <td>Check temperature coefficient sign (should be negative). Verify irradiance sensor
+                                    calibration. May indicate reflected light enhancement.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Specific Yield seems too low</strong></td>
+                                <td>Data incomplete or many zero-power readings</td>
+                                <td>Check Data Quality tab for completeness. Use filtering to exclude anomalous
+                                    zero-power points.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Expected Power much higher than Actual</strong></td>
+                                <td>Normal system losses or issues</td>
+                                <td>5-20% gap is normal (wiring, inverter losses). >30% gap indicates problems—check
+                                    for shading, soiling, faults.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Energy calculations seem wrong</strong></td>
+                                <td>Inconsistent time intervals in data</td>
+                                <td>Energy = Power × Time. If intervals vary, calculations may be off. Use consistent
+                                    logging intervals.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Operating Hours shows 24h</strong></td>
+                                <td>Standby power being counted</td>
+                                <td>Adjust the power threshold in filtering settings. Set minimum power >5W to exclude
+                                    standby consumption.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- 15.4 Visualization Issues -->
+                    <h3>15.4 Visualization & Graph Issues</h3>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">Issue / Symptom</th>
+                                <th style="width: 25%;">Likely Cause</th>
+                                <th style="width: 50%;">Solution</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>No graphs appearing</strong></td>
+                                <td>Missing required columns</td>
+                                <td>Ensure data has Timestamp, Current, Voltage, and Irradiance. Check column detection
+                                    panel for ✅.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Graphs show but are empty</strong></td>
+                                <td>No data for selected date/range</td>
+                                <td>Check date selector. Ensure data exists for the selected period. Try selecting "All
+                                    Dates".</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Graph shows flat line at 0</strong></td>
+                                <td>Data all zeros or calculation failure</td>
+                                <td>Open Raw Data tab to verify actual values. Check if Current/Voltage columns have
+                                    valid numbers.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Hourly averages look wrong</strong></td>
+                                <td>Mixed data from multiple time zones</td>
+                                <td>Ensure all data uses same timezone. The system uses local time from timestamps.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Monthly graphs missing months</strong></td>
+                                <td>Months have no data or insufficient data</td>
+                                <td>Data must have at least one full day per month to appear. Check for gaps in data
+                                    collection.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Colors/legend not showing</strong></td>
+                                <td>Browser rendering issue</td>
+                                <td>Try refreshing the page (F5). Clear browser cache. Try different browser
+                                    (Chrome/Firefox recommended).</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Graph export produces blank image</strong></td>
+                                <td>Memory issue with large datasets</td>
+                                <td>Filter to smaller date range before exporting. Close other browser tabs to free
+                                    memory.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- 15.5 Weather API Issues -->
+                    <h3>15.5 Weather API & Location Issues</h3>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">Issue / Symptom</th>
+                                <th style="width: 25%;">Likely Cause</th>
+                                <th style="width: 50%;">Solution</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>"Failed to fetch weather data"</strong></td>
+                                <td>Network issue or API unavailable</td>
+                                <td>Check internet connection. Open-Meteo API may be temporarily down. Try again in a
+                                    few minutes.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Location not recognized</strong></td>
+                                <td>Invalid coordinates format</td>
+                                <td>Use decimal degrees: Latitude (e.g., 22.2793), Longitude (e.g., 114.1628). Avoid
+                                    degrees/minutes/seconds format.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Google Maps URL not parsing</strong></td>
+                                <td>URL format changed or unsupported</td>
+                                <td>Copy the URL from Google Maps that contains "@22.xxx,114.xxx". Or manually enter
+                                    coordinates in the input fields.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Weather data doesn't match local data</strong></td>
+                                <td>Location mismatch or hourly resolution</td>
+                                <td>Weather API provides regional data, not site-specific. Your on-site sensors are more
+                                    accurate for analysis.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Sunrise/sunset times seem wrong</strong></td>
+                                <td>Timezone mismatch</td>
+                                <td>Weather API returns times in local timezone based on coordinates. Ensure your data
+                                    timestamps use the same timezone.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>No weather data for recent dates</strong></td>
+                                <td>API provides historical data only</td>
+                                <td>Open-Meteo historical API has 5-7 day delay for most recent data. For real-time
+                                    weather, use alternative sources.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- 15.6 Data Quality Issues -->
+                    <h3>15.6 Data Quality & Filtering Issues</h3>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">Issue / Symptom</th>
+                                <th style="width: 25%;">Likely Cause</th>
+                                <th style="width: 50%;">Solution</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Low completeness percentage</strong></td>
+                                <td>Missing data points or gaps</td>
+                                <td>Check for communication failures with logger. Verify expected logging interval.
+                                    Nighttime gaps are normal.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Many "anomalous points" detected</strong></td>
+                                <td>Inverter shutdowns or system issues</td>
+                                <td>High irradiance + zero power = anomaly. Check inverter logs for errors. May indicate
+                                    real problems.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Filtering removes too much data</strong></td>
+                                <td>Thresholds set too aggressively</td>
+                                <td>Adjust filtering thresholds in sidebar. Increase irradiance threshold or decrease
+                                    SoC
+                                    threshold.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Duplicate timestamps warning</strong></td>
+                                <td>Logger recorded multiple entries</td>
+                                <td>Data may need cleaning. The system keeps first occurrence. Check logger settings for
+                                    double-logging.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Statistics show unrealistic min/max</strong></td>
+                                <td>Sensor spikes or noise</td>
+                                <td>Single bad readings can skew stats. This is informational only—doesn't affect
+                                    calculations which use median/robust methods.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Daytime filter excluding valid data</strong></td>
+                                <td>Wrong daytime hours configured</td>
+                                <td>Check Daytime Definition settings. Use "Dynamic (Sunrise/Sunset)" with location for
+                                    accurate seasonal adjustment.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- 15.7 Export Issues -->
+                    <h3>15.7 Export & Download Issues</h3>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">Issue / Symptom</th>
+                                <th style="width: 25%;">Likely Cause</th>
+                                <th style="width: 50%;">Solution</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Download button not responding</strong></td>
+                                <td>No graphs generated yet</td>
+                                <td>Click "Generate Graphs" first, wait for completion, then download. Check that files
+                                    appear in the list.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>ZIP file is empty</strong></td>
+                                <td>Generation failed or path issue</td>
+                                <td>Try generating fewer graphs at once. Check browser console for errors (F12 >
+                                    Console).</td>
+                            </tr>
+                            <tr>
+                                <td><strong>CSV export has wrong encoding</strong></td>
+                                <td>Special characters in data</td>
+                                <td>Open CSV with Excel using "Import from Text" option to specify UTF-8 encoding.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Graph images low quality</strong></td>
+                                <td>Default DPI settings</td>
+                                <td>Images are exported at 150 DPI by default. This is sufficient for screen viewing but
+                                    may appear pixelated when printed large.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Export taking too long</strong></td>
+                                <td>Large date range or many graph types</td>
+                                <td>Select fewer graph types or smaller date range. Each graph type × each date = one
+                                    file.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- 15.8 Performance & System Issues -->
+                    <h3>15.8 Performance & System Issues</h3>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">Issue / Symptom</th>
+                                <th style="width: 25%;">Likely Cause</th>
+                                <th style="width: 50%;">Solution</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Application very slow</strong></td>
+                                <td>Large dataset or limited memory</td>
+                                <td>Close unused browser tabs. Consider processing data in smaller chunks. Use filtering
+                                    to reduce displayed data.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Page becomes unresponsive</strong></td>
+                                <td>Memory exhaustion</td>
+                                <td>Refresh the page (F5). If persistent, restart browser. For very large datasets,
+                                    split into multiple files.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Session data lost on refresh</strong></td>
+                                <td>Normal Streamlit behavior</td>
+                                <td>Streamlit resets state on refresh. Re-upload data after refresh. Use Export to save
+                                    work before closing.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Error messages in red</strong></td>
+                                <td>Code exception or data issue</td>
+                                <td>Note the error message. Check data format. If persistent, report bug with error
+                                    details and sample data.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Tabs not loading content</strong></td>
+                                <td>Data not fully processed</td>
+                                <td>Wait for "✅ Data processed successfully" message before switching tabs. Some tabs
+                                    require all calculations to complete.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- 15.9 Quick Reference Checklist -->
+                    <h3>15.9 Quick Troubleshooting Checklist</h3>
+
+                    <p>Before diving into specific issues, run through this quick checklist:</p>
+
+                    <ol>
+                        <li><strong>Data Uploaded?</strong> Check that you see "✅ Data loaded" in the sidebar</li>
+                        <li><strong>Columns Detected?</strong> Verify green checkmarks (✅) for essential columns</li>
+                        <li><strong>Settings Correct?</strong> Confirm Nominal Power is in kWp, not W</li>
+                        <li><strong>Date Range Valid?</strong> Ensure selected dates have data</li>
+                        <li><strong>Processing Complete?</strong> Wait for all tabs to finish loading</li>
+                        <li><strong>Browser Fresh?</strong> Try Ctrl+Shift+R for hard refresh</li>
+                    </ol>
+
+                    <div class="alert alert-tip">
+                        <strong>💡 Still Stuck?</strong> If you've tried the solutions above and still have issues,
+                        export your data as CSV and check it in Excel to verify the raw values. Many issues stem from
+                        unexpected data formats or values.
+                    </div>
+
                 </section>
 
                 <!-- Section 16: Glossary -->
