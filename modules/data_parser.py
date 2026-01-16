@@ -16,6 +16,10 @@ COLUMN_PATTERNS = {
         r'^timestamp$', r'^time$', r'^date$', r'^datetime$', r'date_time', r'^dt$', 
         r'reading_time', r'log_time', r'record_time', r'timestamp'
     ],
+    'power': [
+        r'\bpower\b', r'power.*\(w\)', r'\(w\)$', r'^p$', r'dc[_\s]?power', r'p[_\s]?dc',
+        r'output.*power', r'generated.*power', r'pv.*power'
+    ],
     'current': [
         r'\bcurrent\b', r'^i$', r'dc[_\s]?current', r'i[_\s]?dc', r'^amps$', r'^amp$',
         r'current.*\(a\)', r'\(a\)$', r'dc.*current'
@@ -34,7 +38,7 @@ COLUMN_PATTERNS = {
     ],
     'soc': [
         r'\bsoc\b', r'battery[_\s]?soc', r'state[_\s]?of[_\s]?charge', r'battery.*%',
-        r'charge[_\s]?state', r'batt[_\s]?soc'
+        r'charge[_\s]?state', r'batt[_\s]?soc', r'soc.*\(%\)'
     ]
 }
 
@@ -211,20 +215,28 @@ def prepare_analysis_data(df: pd.DataFrame, column_mapping: Dict[str, Optional[s
         analysis_df['Hour'] = analysis_df['Timestamp'].dt.hour
         analysis_df['Month'] = analysis_df['Timestamp'].dt.to_period('M')
     
-    if column_mapping['current']:
+    # Handle power column
+    if column_mapping.get('power'):
+        analysis_df['Power_W'] = pd.to_numeric(df[column_mapping['power']], errors='coerce')
+    
+    if column_mapping.get('current'):
         analysis_df['Current_A'] = pd.to_numeric(df[column_mapping['current']], errors='coerce')
     
-    if column_mapping['voltage']:
+    if column_mapping.get('voltage'):
         analysis_df['Voltage_V'] = pd.to_numeric(df[column_mapping['voltage']], errors='coerce')
     
-    if column_mapping['irradiance']:
+    if column_mapping.get('irradiance'):
         analysis_df['Irradiance_Wm2'] = pd.to_numeric(df[column_mapping['irradiance']], errors='coerce')
     
-    if column_mapping['temperature']:
+    if column_mapping.get('temperature'):
         analysis_df['Temperature_C'] = pd.to_numeric(df[column_mapping['temperature']], errors='coerce')
     
-    if column_mapping['soc']:
+    if column_mapping.get('soc'):
         analysis_df['SoC_pct'] = pd.to_numeric(df[column_mapping['soc']], errors='coerce')
+    
+    # Calculate Power_W from V*A if not directly available
+    if 'Power_W' not in analysis_df.columns and 'Current_A' in analysis_df.columns and 'Voltage_V' in analysis_df.columns:
+        analysis_df['Power_W'] = analysis_df['Voltage_V'] * analysis_df['Current_A']
     
     return analysis_df
 

@@ -175,7 +175,7 @@ def plot_multi_site_pr_trend(
     """
     from modules.multi_site import get_daily_metrics_for_comparison
     
-    pr_data = get_daily_metrics_for_comparison(sites, 'Performance_Ratio', date_range)
+    pr_data = get_daily_metrics_for_comparison(sites, 'PR_pct', date_range)
     
     if pr_data.empty:
         return None
@@ -235,7 +235,11 @@ def plot_multi_site_yield_trend(
         daily = site_data['daily_metrics'].copy()
         
         if date_range and date_range[0] and date_range[1]:
-            mask = (daily['Date'] >= date_range[0]) & (daily['Date'] <= date_range[1])
+            # Convert string dates to date objects for comparison
+            start_dt = pd.to_datetime(date_range[0]).date()
+            end_dt = pd.to_datetime(date_range[1]).date()
+            daily_dates = pd.to_datetime(daily['Date']).dt.date
+            mask = (daily_dates >= start_dt) & (daily_dates <= end_dt)
             daily = daily[mask]
         
         if 'Actual_Energy_kWh' not in daily.columns:
@@ -286,7 +290,7 @@ def plot_multi_site_pr_boxplot(
     """
     from modules.multi_site import get_daily_metrics_for_comparison
     
-    pr_data = get_daily_metrics_for_comparison(sites, 'Performance_Ratio', date_range)
+    pr_data = get_daily_metrics_for_comparison(sites, 'PR_pct', date_range)
     
     if pr_data.empty:
         return None
@@ -353,8 +357,8 @@ def plot_multi_site_monthly_heatmap(
         if monthly is None or len(monthly) == 0:
             continue
         
-        if metric == 'pr' and 'Performance_Ratio' in monthly.columns:
-            values = monthly.set_index('Month')['Performance_Ratio']
+        if metric == 'pr' and 'PR_pct' in monthly.columns:
+            values = monthly.set_index('Month')['PR_pct']
         elif metric == 'yield' and 'Actual_Energy_kWh' in monthly.columns:
             # Calculate monthly specific yield
             values = monthly.set_index('Month')['Actual_Energy_kWh'] / site_data['nominal_power_kwp']
@@ -451,6 +455,309 @@ def plot_multi_site_ranking(
     for ax in [ax1, ax2]:
         ax.set_facecolor('#f8f9fa')
         ax.grid(axis='x', alpha=0.3)
+    
+    plt.tight_layout()
+    
+    if show_plot:
+        return fig
+    
+    plt.close(fig)
+    return None
+
+
+def plot_multi_site_hourly_specific_yield(
+    sites: Dict[str, Dict],
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """
+    Create hourly-averaged specific yield (kW/kWp) comparison for all sites.
+    Shows normalized power output by hour of day for fair comparison.
+    """
+    if not sites:
+        return None
+    
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    for i, (site_id, site_data) in enumerate(sites.items()):
+        analysis_df = site_data['analysis_df']
+        
+        if 'Power_W' not in analysis_df.columns or 'Hour' not in analysis_df.columns:
+            continue
+        
+        # Calculate hourly average power per kWp
+        nominal = site_data['nominal_power_kwp']
+        hourly_avg = analysis_df.groupby('Hour')['Power_W'].mean() / 1000  # Convert to kW
+        hourly_specific = hourly_avg / nominal if nominal > 0 else hourly_avg  # kW/kWp
+        
+        color = get_site_color(i)
+        ax.plot(hourly_specific.index, hourly_specific.values,
+                color=color, linewidth=2, marker='o', markersize=5,
+                label=site_data['name'], alpha=0.8)
+    
+    ax.set_xlabel('Hour of Day', fontsize=12)
+    ax.set_ylabel('Normalized Power (kW/kWp)', fontsize=12)
+    ax.set_title('Hourly Average Power per kWp - All Sites', fontsize=14, fontweight='bold')
+    ax.legend(loc='upper right', fontsize=10)
+    ax.set_xlim(0, 23)
+    ax.set_xticks(range(0, 24, 2))
+    ax.set_facecolor('#f8f9fa')
+    ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    
+    if show_plot:
+        return fig
+    
+    plt.close(fig)
+    return None
+
+
+def plot_multi_site_power_per_unit(
+    sites: Dict[str, Dict],
+    date_range: Tuple[str, str] = None,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """
+    Create daily normalized power (kW/kWp) trend for fair comparison.
+    Shows max daily power per unit installed capacity.
+    """
+    if not sites:
+        return None
+    
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    for i, (site_id, site_data) in enumerate(sites.items()):
+        daily = site_data['daily_metrics'].copy()
+        
+        if date_range and date_range[0] and date_range[1]:
+            start_dt = pd.to_datetime(date_range[0]).date()
+            end_dt = pd.to_datetime(date_range[1]).date()
+            daily_dates = pd.to_datetime(daily['Date']).dt.date
+            mask = (daily_dates >= start_dt) & (daily_dates <= end_dt)
+            daily = daily[mask]
+        
+        if 'Max_Power_kW' not in daily.columns:
+            continue
+        
+        # Calculate max power per kWp
+        nominal = site_data['nominal_power_kwp']
+        daily['Power_per_kWp'] = daily['Max_Power_kW'] / nominal if nominal > 0 else 0
+        
+        dates = pd.to_datetime(daily['Date'])
+        color = get_site_color(i)
+        
+        ax.plot(dates, daily['Power_per_kWp'],
+                color=color, linewidth=2, marker='o', markersize=3,
+                label=site_data['name'], alpha=0.8)
+    
+    ax.set_xlabel('Date', fontsize=12)
+    ax.set_ylabel('Max Power per kWp (kW/kWp)', fontsize=12)
+    ax.set_title('Daily Maximum Normalized Power - All Sites', fontsize=14, fontweight='bold')
+    ax.legend(loc='upper right', fontsize=10)
+    
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    plt.xticks(rotation=45, ha='right')
+    
+    ax.set_facecolor('#f8f9fa')
+    ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    
+    if show_plot:
+        return fig
+    
+    plt.close(fig)
+    return None
+
+
+def plot_multi_site_irradiance_combined(
+    sites: Dict[str, Dict],
+    date_range: Tuple[str, str] = None,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """
+    Create combined irradiance trend for all sites.
+    Shows daily average irradiance comparison.
+    """
+    if not sites:
+        return None
+    
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    for i, (site_id, site_data) in enumerate(sites.items()):
+        daily = site_data['daily_metrics'].copy()
+        
+        if date_range and date_range[0] and date_range[1]:
+            start_dt = pd.to_datetime(date_range[0]).date()
+            end_dt = pd.to_datetime(date_range[1]).date()
+            daily_dates = pd.to_datetime(daily['Date']).dt.date
+            mask = (daily_dates >= start_dt) & (daily_dates <= end_dt)
+            daily = daily[mask]
+        
+        if 'Avg_Irradiance' not in daily.columns:
+            continue
+        
+        dates = pd.to_datetime(daily['Date'])
+        color = get_site_color(i)
+        
+        ax.plot(dates, daily['Avg_Irradiance'],
+                color=color, linewidth=2, marker='o', markersize=3,
+                label=site_data['name'], alpha=0.8)
+    
+    ax.set_xlabel('Date', fontsize=12)
+    ax.set_ylabel('Avg Daily Irradiance (W/m²)', fontsize=12)
+    ax.set_title('Daily Irradiance Comparison - All Sites', fontsize=14, fontweight='bold')
+    ax.legend(loc='upper right', fontsize=10)
+    
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    plt.xticks(rotation=45, ha='right')
+    
+    ax.set_facecolor('#f8f9fa')
+    ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    
+    if show_plot:
+        return fig
+    
+    plt.close(fig)
+    return None
+
+
+def plot_multi_site_irradiance_individual(
+    sites: Dict[str, Dict],
+    date_range: Tuple[str, str] = None,
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """
+    Create individual irradiance plots for each site in a grid.
+    """
+    if not sites:
+        return None
+    
+    n_sites = len(sites)
+    if n_sites == 0:
+        return None
+    
+    # Calculate grid dimensions
+    n_cols = min(2, n_sites)
+    n_rows = (n_sites + n_cols - 1) // n_cols
+    
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(7 * n_cols, 4 * n_rows))
+    
+    # Handle single plot case
+    if n_sites == 1:
+        axes = np.array([axes])
+    axes = np.atleast_1d(axes).flatten()
+    
+    for i, (site_id, site_data) in enumerate(sites.items()):
+        ax = axes[i]
+        daily = site_data['daily_metrics'].copy()
+        
+        if date_range and date_range[0] and date_range[1]:
+            start_dt = pd.to_datetime(date_range[0]).date()
+            end_dt = pd.to_datetime(date_range[1]).date()
+            daily_dates = pd.to_datetime(daily['Date']).dt.date
+            mask = (daily_dates >= start_dt) & (daily_dates <= end_dt)
+            daily = daily[mask]
+        
+        if 'Avg_Irradiance' in daily.columns:
+            dates = pd.to_datetime(daily['Date'])
+            color = get_site_color(i)
+            
+            ax.fill_between(dates, daily['Avg_Irradiance'], alpha=0.3, color=color)
+            ax.plot(dates, daily['Avg_Irradiance'],
+                    color=color, linewidth=2, alpha=0.8)
+            
+            avg_irr = daily['Avg_Irradiance'].mean()
+            ax.axhline(y=avg_irr, color='red', linestyle='--', linewidth=1, alpha=0.7)
+            ax.text(dates.iloc[-1], avg_irr, f' Avg: {avg_irr:.0f}', 
+                    va='center', fontsize=9, color='red')
+        
+        ax.set_title(f"{site_data['name']}", fontsize=11, fontweight='bold')
+        ax.set_xlabel('Date', fontsize=10)
+        ax.set_ylabel('Irradiance (W/m²)', fontsize=10)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+        ax.tick_params(axis='x', rotation=45)
+        ax.set_facecolor('#f8f9fa')
+        ax.grid(True, alpha=0.3)
+    
+    # Hide empty subplots
+    for j in range(i + 1, len(axes)):
+        axes[j].set_visible(False)
+    
+    plt.suptitle('Daily Irradiance by Site', fontsize=14, fontweight='bold', y=1.02)
+    plt.tight_layout()
+    
+    if show_plot:
+        return fig
+    
+    plt.close(fig)
+    return None
+
+
+def plot_multi_site_hourly_power_irradiance(
+    sites: Dict[str, Dict],
+    show_plot: bool = False
+) -> Optional[plt.Figure]:
+    """
+    Create combined hourly power (per unit) and irradiance profiles.
+    Shows overlay of normalized power vs irradiance by hour of day.
+    """
+    if not sites:
+        return None
+    
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    
+    # Left: Normalized Power by Hour
+    for i, (site_id, site_data) in enumerate(sites.items()):
+        analysis_df = site_data['analysis_df']
+        
+        if 'Power_W' not in analysis_df.columns or 'Hour' not in analysis_df.columns:
+            continue
+        
+        nominal = site_data['nominal_power_kwp']
+        hourly_avg = analysis_df.groupby('Hour')['Power_W'].mean() / 1000
+        hourly_specific = hourly_avg / nominal if nominal > 0 else hourly_avg
+        
+        color = get_site_color(i)
+        ax1.plot(hourly_specific.index, hourly_specific.values,
+                color=color, linewidth=2, marker='o', markersize=4,
+                label=site_data['name'], alpha=0.8)
+    
+    ax1.set_xlabel('Hour of Day', fontsize=12)
+    ax1.set_ylabel('Power (kW/kWp)', fontsize=12)
+    ax1.set_title('Normalized Power Profile', fontsize=13, fontweight='bold')
+    ax1.legend(loc='upper right', fontsize=9)
+    ax1.set_xlim(0, 23)
+    ax1.set_xticks(range(0, 24, 3))
+    ax1.set_facecolor('#f8f9fa')
+    ax1.grid(True, alpha=0.3)
+    
+    # Right: Irradiance by Hour
+    for i, (site_id, site_data) in enumerate(sites.items()):
+        analysis_df = site_data['analysis_df']
+        
+        if 'Irradiance_Wm2' not in analysis_df.columns or 'Hour' not in analysis_df.columns:
+            continue
+        
+        hourly_irr = analysis_df.groupby('Hour')['Irradiance_Wm2'].mean()
+        
+        color = get_site_color(i)
+        ax2.plot(hourly_irr.index, hourly_irr.values,
+                color=color, linewidth=2, marker='s', markersize=4,
+                label=site_data['name'], alpha=0.8)
+    
+    ax2.set_xlabel('Hour of Day', fontsize=12)
+    ax2.set_ylabel('Irradiance (W/m²)', fontsize=12)
+    ax2.set_title('Irradiance Profile', fontsize=13, fontweight='bold')
+    ax2.legend(loc='upper right', fontsize=9)
+    ax2.set_xlim(0, 23)
+    ax2.set_xticks(range(0, 24, 3))
+    ax2.set_facecolor('#f8f9fa')
+    ax2.grid(True, alpha=0.3)
     
     plt.tight_layout()
     

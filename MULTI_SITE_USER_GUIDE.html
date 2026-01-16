@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Site Comparison - User Guide</title>
+    <style>
+        :root {
+            --primary-color: #3498DB;
+            --secondary-color: #2ECC71;
+            --warning-color: #F39C12;
+            --danger-color: #E74C3C;
+            --dark-bg: #2C3E50;
+            --light-bg: #ECF0F1;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-bg));
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            border-radius: 0 0 20px 20px;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .toc {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--dark-bg);
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ol {
+            padding-left: 25px;
+        }
+
+        .toc li {
+            margin: 8px 0;
+        }
+
+        .toc a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 25px;
+        }
+
+        section h2 {
+            color: var(--dark-bg);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid var(--primary-color);
+        }
+
+        section h3 {
+            color: var(--primary-color);
+            margin: 25px 0 15px 0;
+        }
+
+        section h4 {
+            color: #555;
+            margin: 20px 0 10px 0;
+        }
+
+        p {
+            margin-bottom: 15px;
+        }
+
+        ul,
+        ol {
+            margin-bottom: 15px;
+            padding-left: 25px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        .info-box {
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .info-box.tip {
+            background: #E8F8F5;
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        .info-box.warning {
+            background: #FEF9E7;
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .info-box.danger {
+            background: #FDEDEC;
+            border-left: 4px solid var(--danger-color);
+        }
+
+        .info-box.info {
+            background: #EBF5FB;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .info-box h4 {
+            margin-top: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th,
+        td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: var(--dark-bg);
+            color: white;
+        }
+
+        tr:hover {
+            background: #f5f5f5;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background: #2C3E50;
+            color: #ECF0F1;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        pre code {
+            background: none;
+            color: inherit;
+        }
+
+        .step-box {
+            display: flex;
+            align-items: flex-start;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+
+        .step-number {
+            background: var(--primary-color);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .tab-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+
+        .tab-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 12px 15px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .tab-body {
+            padding: 15px;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+        }
+
+        .metric-card h4 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+
+        .formula {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Consolas', monospace;
+            text-align: center;
+            margin: 15px 0;
+            border: 1px solid #ddd;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            margin-top: 30px;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+
+            section {
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>🏢 Multi-Site Comparison</h1>
+        <p>User Guide for Comparing Multiple Solar Installations</p>
+    </header>
+
+    <div class="container">
+        <!-- Table of Contents -->
+        <nav class="toc">
+            <h2>📋 Table of Contents</h2>
+            <ol>
+                <li><a href="#overview">Overview</a></li>
+                <li><a href="#input-requirements">Input Data Requirements</a></li>
+                <li><a href="#getting-started">Getting Started</a></li>
+                <li><a href="#adding-sites">Adding Sites</a></li>
+                <li><a href="#understanding-metrics">Understanding the Metrics</a></li>
+                <li><a href="#visualization-tabs">Visualization Tabs Explained</a></li>
+                <li><a href="#interpreting-results">Interpreting Results</a></li>
+                <li><a href="#troubleshooting">Troubleshooting & Common Issues</a></li>
+                <li><a href="#best-practices">Best Practices</a></li>
+                <li><a href="#faq">Frequently Asked Questions</a></li>
+            </ol>
+        </nav>
+
+        <!-- Section 1: Overview -->
+        <section id="overview">
+            <h2>1. Overview</h2>
+            <p>The <strong>Multi-Site Comparison</strong> feature enables you to compare the performance of multiple
+                solar installations side-by-side, regardless of their sizes. This is essential for:</p>
+            <ul>
+                <li>Portfolio managers overseeing multiple solar sites</li>
+                <li>Identifying underperforming installations</li>
+                <li>Comparing performance across different locations and climates</li>
+                <li>Benchmarking new installations against existing ones</li>
+            </ul>
+
+            <h3>Why Normalized Metrics?</h3>
+            <p>Directly comparing energy output from a 5 kWp residential system to a 500 kWp commercial installation is
+                meaningless. Our system uses <strong>normalized metrics</strong> that account for system size, enabling
+                "apples-to-apples" comparison:</p>
+
+            <div class="metric-grid">
+                <div class="metric-card">
+                    <h4>Performance Ratio (PR)</h4>
+                    <p>Compares actual output to theoretical maximum, expressed as a percentage. A site with 85% PR
+                        produces 85% of what it theoretically could given the available sunlight.</p>
+                </div>
+                <div class="metric-card">
+                    <h4>Specific Yield (kWh/kWp)</h4>
+                    <p>Energy produced per unit of installed capacity. A site producing 4.5 kWh/kWp daily means each kWp
+                        of panels produces 4.5 kWh per day on average.</p>
+                </div>
+            </div>
+
+            <div class="info-box info">
+                <h4>💡 Key Insight</h4>
+                <p>A small 5 kWp rooftop with 90% PR is outperforming a large 500 kWp solar farm with 75% PR, even
+                    though the farm produces more total energy. The normalized metrics reveal this difference.</p>
+            </div>
+        </section>
+
+        <!-- Section 2: Input Requirements -->
+        <section id="input-requirements">
+            <h2>2. Input Data Requirements</h2>
+
+            <h3>Required CSV Format</h3>
+            <p>Each site's data must be provided as a CSV file with the following columns:</p>
+
+            <table>
+                <tr>
+                    <th>Column</th>
+                    <th>Required</th>
+                    <th>Expected Format</th>
+                    <th>Example</th>
+                </tr>
+                <tr>
+                    <td><code>Timestamp</code></td>
+                    <td>✅ Required</td>
+                    <td>YYYY-MM-DD HH:MM:SS</td>
+                    <td>2025-01-15 14:30:00</td>
+                </tr>
+                <tr>
+                    <td><code>Power (W)</code></td>
+                    <td>✅ Required</td>
+                    <td>Numeric (Watts)</td>
+                    <td>45230.5</td>
+                </tr>
+                <tr>
+                    <td><code>Irradiance (W/m2)</code></td>
+                    <td>✅ Required</td>
+                    <td>Numeric (W/m²)</td>
+                    <td>850.3</td>
+                </tr>
+                <tr>
+                    <td><code>Temperature (C)</code></td>
+                    <td>⚠️ Recommended</td>
+                    <td>Numeric (°C)</td>
+                    <td>35.2</td>
+                </tr>
+                <tr>
+                    <td><code>Voltage (V)</code></td>
+                    <td>Optional</td>
+                    <td>Numeric (Volts)</td>
+                    <td>34.5</td>
+                </tr>
+                <tr>
+                    <td><code>Current (A)</code></td>
+                    <td>Optional</td>
+                    <td>Numeric (Amps)</td>
+                    <td>1312.5</td>
+                </tr>
+            </table>
+
+            <div class="info-box warning">
+                <h4>⚠️ Important Notes</h4>
+                <ul>
+                    <li><strong>Power data is essential</strong> - Without power measurements, PR cannot be calculated
+                    </li>
+                    <li><strong>Irradiance is critical</strong> - Used to calculate expected power and PR</li>
+                    <li><strong>Temperature improves accuracy</strong> - Enables temperature-corrected PR calculation
+                    </li>
+                    <li>If only Voltage and Current are available, Power will be calculated as V × A</li>
+                </ul>
+            </div>
+
+            <h3>Column Name Detection</h3>
+            <p>Our system automatically detects columns even with different naming conventions:</p>
+
+            <table>
+                <tr>
+                    <th>Data Type</th>
+                    <th>Recognized Column Names</th>
+                </tr>
+                <tr>
+                    <td>Timestamp</td>
+                    <td><code>Timestamp</code>, <code>Time</code>, <code>Date</code>, <code>DateTime</code></td>
+                </tr>
+                <tr>
+                    <td>Power</td>
+                    <td><code>Power</code>, <code>Power (W)</code>, <code>DC Power</code>, <code>Output Power</code>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Irradiance</td>
+                    <td><code>Irradiance</code>, <code>GHI</code>, <code>POA</code>, <code>Solar Radiation</code>,
+                        <code>W/m2</code>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Temperature</td>
+                    <td><code>Temperature</code>, <code>Temp</code>, <code>Cell Temp</code>, <code>Module Temp</code>
+                    </td>
+                </tr>
+            </table>
+
+            <h3>Sample CSV Format</h3>
+            <pre><code>Timestamp,Power (W),Voltage (V),Current (A),Irradiance (W/m2),Temperature (C)
+2025-11-01 06:00:00,10239.65,35.38,289.35,150.5,34.8
+2025-11-01 06:15:00,12202.08,34.39,354.85,185.2,36.3
+2025-11-01 06:30:00,14687.48,33.94,432.82,220.7,37.3</code></pre>
+        </section>
+
+        <!-- Section 3: Getting Started -->
+        <section id="getting-started">
+            <h2>3. Getting Started</h2>
+
+            <h3>Accessing Multi-Site Comparison</h3>
+            <div class="step-box">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <strong>Open the Application</strong><br>
+                    Navigate to the Solar Panel Monitoring System in your browser.
+                </div>
+            </div>
+
+            <div class="step-box">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <strong>Click the Multi-Site Button</strong><br>
+                    In the sidebar under "Select Analysis Mode", click the <strong>🏢 Multi-Site</strong> button.
+                </div>
+            </div>
+
+            <div class="step-box">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <strong>Start Adding Sites</strong><br>
+                    You'll see the Multi-Site Comparison interface with sections for adding and viewing sites.
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Adding Sites -->
+        <section id="adding-sites">
+            <h2>4. Adding Sites</h2>
+
+            <h3>Step-by-Step Process</h3>
+
+            <div class="step-box">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <strong>Upload CSV File</strong><br>
+                    In the "Add Sites" section, click "Browse files" or drag-and-drop your CSV file.
+                </div>
+            </div>
+
+            <div class="step-box">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <strong>Configure Site Name</strong><br>
+                    Enter a descriptive name for the site (e.g., "Dubai Commercial Rooftop" or "Singapore Factory").
+                </div>
+            </div>
+
+            <div class="step-box">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <strong>Set Nominal Power (kWp)</strong><br>
+                    Enter the system's rated capacity in kilowatt-peak. This is critical for normalized calculations.
+                    <div class="info-box warning" style="margin-top: 10px;">
+                        <strong>⚠️ Accuracy is Essential</strong><br>
+                        An incorrect nominal power will skew all normalized metrics. Verify this value from system
+                        specifications.
+                    </div>
+                </div>
+            </div>
+
+            <div class="step-box">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <strong>Set Temperature Coefficient (Optional)</strong><br>
+                    Default is -0.4%/°C (typical for crystalline silicon). Adjust if your panels have different
+                    specifications.
+                </div>
+            </div>
+
+            <div class="step-box">
+                <div class="step-number">5</div>
+                <div class="step-content">
+                    <strong>Click "Add This Site"</strong><br>
+                    The system will process the data and add it to the comparison.
+                </div>
+            </div>
+
+            <div class="step-box">
+                <div class="step-number">6</div>
+                <div class="step-content">
+                    <strong>Repeat for Additional Sites</strong><br>
+                    Add at least 2 sites to enable comparison. You can add up to 10 sites.
+                </div>
+            </div>
+
+            <h3>Managing Loaded Sites</h3>
+            <p>The "Loaded Sites" panel shows all sites currently in the comparison:</p>
+            <ul>
+                <li><strong>View site details:</strong> Each site shows its name, nominal power, and date range</li>
+                <li><strong>Remove individual sites:</strong> Click the ❌ button next to a site</li>
+                <li><strong>Clear all sites:</strong> Use the "🗑️ Clear All Sites" button in the sidebar</li>
+            </ul>
+        </section>
+
+        <!-- Section 5: Understanding Metrics -->
+        <section id="understanding-metrics">
+            <h2>5. Understanding the Metrics</h2>
+
+            <h3>1. Expected Power Calculation</h3>
+            <p>The <strong>Expected Power</strong> (P<sub>exp</sub>) is the theoretical power output of the system based
+                on current environmental conditions. We use the standard temperature-corrected formula as defined in
+                <strong>IEC 61724-1</strong>:</p>
+
+            <div class="formula">
+                P<sub>exp</sub> = P<sub>STC</sub> × (G ÷ 1000) × [1 + γ × (T<sub>cell</sub> − 25)]
+            </div>
+
+            <p><strong>Variables Explained:</strong></p>
+            <table>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Source</th>
+                </tr>
+                <tr>
+                    <td><strong>P<sub>exp</sub></strong></td>
+                    <td>Expected Power</td>
+                    <td>Theoretical power output (Watts)</td>
+                    <td>Calculated</td>
+                </tr>
+                <tr>
+                    <td><strong>P<sub>STC</sub></strong></td>
+                    <td>Nominal Power</td>
+                    <td>System rated capacity at Standard Test Conditions (Watts)</td>
+                    <td>User Input</td>
+                </tr>
+                <tr>
+                    <td><strong>G</strong></td>
+                    <td>Irradiance</td>
+                    <td>Measured solar irradiance in plane of array (W/m²)</td>
+                    <td>CSV Data</td>
+                </tr>
+                <tr>
+                    <td><strong>1000</strong></td>
+                    <td>Reference Irradiance</td>
+                    <td>Standard irradiance at STC (W/m²)</td>
+                    <td>Constant</td>
+                </tr>
+                <tr>
+                    <td><strong>γ</strong> (gamma)</td>
+                    <td>Temp Coefficient</td>
+                    <td>Power temperature coefficient (e.g., -0.004 for -0.4%/°C)</td>
+                    <td>User Input</td>
+                </tr>
+                <tr>
+                    <td><strong>T<sub>cell</sub></strong></td>
+                    <td>Cell Temperature</td>
+                    <td>Measured module/cell temperature (°C)</td>
+                    <td>CSV Data</td>
+                </tr>
+                <tr>
+                    <td><strong>25</strong></td>
+                    <td>Reference Temp</td>
+                    <td>Standard temperature at STC (°C)</td>
+                    <td>Constant</td>
+                </tr>
+            </table>
+
+            <div class="info-box info">
+                <h4>📝 Note on Temperature</h4>
+                <p>If temperature data is missing, the temperature correction factor is assumed to be 1, meaning the
+                    formula simplifies to:</p>
+                <div class="formula">P<sub>exp</sub> = P<sub>STC</sub> × (G ÷ 1000)</div>
+            </div>
+
+            <h3>2. Performance Ratio (PR)</h3>
+            <p>The Performance Ratio is the primary metric for assessing system quality independent of location and
+                size. It represents how efficiently the system converts available sunlight to energy.</p>
+
+            <div class="formula">
+                PR (%) = (Measured Energy ÷ Expected Energy) × 100
+            </div>
+
+            <p><strong>Expanded Formula:</strong></p>
+            <div class="formula">
+                PR (%) = (∑ E<sub>measured</sub> ÷ ∑ E<sub>expected</sub>) × 100
+            </div>
+
+            <table>
+                <tr>
+                    <th>Term</th>
+                    <th>Description</th>
+                    <th>How It's Calculated</th>
+                </tr>
+                <tr>
+                    <td><strong>E<sub>measured</sub></strong></td>
+                    <td>Measured Energy (kWh)</td>
+                    <td>Integration of measured power over time using trapezoidal rule</td>
+                </tr>
+                <tr>
+                    <td><strong>E<sub>expected</sub></strong></td>
+                    <td>Expected Energy (kWh)</td>
+                    <td>Integration of expected power (from formula above) over time</td>
+                </tr>
+            </table>
+
+            <table>
+                <tr>
+                    <th>PR Range</th>
+                    <th>Rating</th>
+                    <th>Interpretation</th>
+                </tr>
+                <tr style="background: #E8F8F5;">
+                    <td>≥ 80%</td>
+                    <td>🟢 Excellent</td>
+                    <td>Well-maintained, high-quality system</td>
+                </tr>
+                <tr style="background: #FEF9E7;">
+                    <td>70-80%</td>
+                    <td>🟡 Good</td>
+                    <td>Normal performance, minor losses acceptable</td>
+                </tr>
+                <tr style="background: #FDF2E9;">
+                    <td>60-70%</td>
+                    <td>🟠 Fair</td>
+                    <td>Investigate potential issues</td>
+                </tr>
+                <tr style="background: #FDEDEC;">
+                    <td>&lt; 60%</td>
+                    <td>🔴 Poor</td>
+                    <td>Significant issues - requires attention</td>
+                </tr>
+            </table>
+
+            <h3>3. Specific Yield (Y<sub>f</sub>)</h3>
+            <p>Specific Yield measures energy production normalized by system size, allowing fair comparison between
+                systems of different capacities.</p>
+
+            <div class="formula">
+                Specific Yield = Total Energy (kWh) ÷ Nominal Power (kWp)
+            </div>
+
+            <table>
+                <tr>
+                    <th>Term</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td><strong>Y<sub>f</sub></strong></td>
+                    <td>Specific Yield (kWh/kWp) - also called "Final Yield"</td>
+                </tr>
+                <tr>
+                    <td><strong>E<sub>daily</sub></strong></td>
+                    <td>Total Daily Energy Output (kWh)</td>
+                </tr>
+                <tr>
+                    <td><strong>P<sub>STC</sub></strong></td>
+                    <td>System Nominal Power (kWp)</td>
+                </tr>
+            </table>
+
+            <p><strong>Reference Ranges:</strong></p>
+            <ul>
+                <li><strong>Daily:</strong> Typically 3-6 kWh/kWp depending on season and location</li>
+                <li><strong>Annual:</strong> Typically 1,000-2,000 kWh/kWp depending on climate</li>
+            </ul>
+
+            <div class="info-box tip">
+                <h4>📚 Industry Standard Reference</h4>
+                <p>These formulas follow <strong>IEC 61724-1:2017</strong> - Photovoltaic system performance — Part 1:
+                    Monitoring. This is the international standard for PV performance assessment.</p>
+            </div>
+
+            <h3>Summary Table Columns</h3>
+            <table>
+                <tr>
+                    <th>Column</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td>Site Name</td>
+                    <td>User-defined identifier for the installation</td>
+                </tr>
+                <tr>
+                    <td>Nominal Power (kWp)</td>
+                    <td>System rated capacity</td>
+                </tr>
+                <tr>
+                    <td>Days Analyzed</td>
+                    <td>Number of days with valid data in common date range</td>
+                </tr>
+                <tr>
+                    <td>Total Energy (kWh)</td>
+                    <td>Total energy produced during the analyzed period</td>
+                </tr>
+                <tr>
+                    <td>Avg Daily Yield (kWh/kWp)</td>
+                    <td>Average daily energy per kWp installed</td>
+                </tr>
+                <tr>
+                    <td>Avg PR (%)</td>
+                    <td>Average Performance Ratio across all days</td>
+                </tr>
+                <tr>
+                    <td>PR Rank</td>
+                    <td>Rank based on PR (1 = best)</td>
+                </tr>
+            </table>
+        </section>
+
+        <!-- Section 6: Visualization Tabs -->
+        <section id="visualization-tabs">
+            <h2>6. Visualization Tabs Explained</h2>
+
+            <div class="tab-card">
+                <div class="tab-header">📊 Bar Charts</div>
+                <div class="tab-body">
+                    <p>Side-by-side bar comparisons of key metrics:</p>
+                    <ul>
+                        <li><strong>Performance Ratio Comparison:</strong> Color-coded bars (green=excellent,
+                            yellow=good, orange=fair, red=poor)</li>
+                        <li><strong>Daily Specific Yield Comparison:</strong> Energy production per kWp by site</li>
+                    </ul>
+                    <p><em>Best for:</em> Quick visual ranking of sites</p>
+                </div>
+            </div>
+
+            <div class="tab-card">
+                <div class="tab-header">📈 Trends</div>
+                <div class="tab-body">
+                    <p>Time-series visualizations showing daily changes:</p>
+                    <ul>
+                        <li><strong>Daily PR Trend:</strong> PR values over time for all sites</li>
+                        <li><strong>Daily Specific Yield Trend:</strong> Energy production per kWp over time</li>
+                        <li><strong>Daily Normalized Power Trend:</strong> Maximum daily power per kWp</li>
+                    </ul>
+                    <p><em>Best for:</em> Identifying performance changes over time, seasonal patterns, or sudden drops
+                    </p>
+                </div>
+            </div>
+
+            <div class="tab-card">
+                <div class="tab-header">⏰ Hourly Profiles</div>
+                <div class="tab-body">
+                    <p>Average performance by hour of day:</p>
+                    <ul>
+                        <li><strong>Hourly Average Power per kWp:</strong> Normalized power curve showing when each site
+                            performs best</li>
+                        <li><strong>Power vs Irradiance Profiles:</strong> Side-by-side comparison of power and
+                            irradiance patterns</li>
+                    </ul>
+                    <p><em>Best for:</em> Comparing operational behavior, identifying shading issues, understanding peak
+                        production times</p>
+                </div>
+            </div>
+
+            <div class="tab-card">
+                <div class="tab-header">☀️ Irradiance</div>
+                <div class="tab-body">
+                    <p>Solar resource comparison across locations:</p>
+                    <ul>
+                        <li><strong>Combined Daily Irradiance:</strong> All sites on one graph showing available
+                            sunlight</li>
+                        <li><strong>Individual Site Irradiance:</strong> Separate graphs for each site with average
+                            lines</li>
+                    </ul>
+                    <p><em>Best for:</em> Understanding differences in solar resource, identifying weather-related
+                        performance differences</p>
+                </div>
+            </div>
+
+            <div class="tab-card">
+                <div class="tab-header">📦 Distribution</div>
+                <div class="tab-body">
+                    <p>Statistical distribution of Performance Ratio:</p>
+                    <ul>
+                        <li><strong>Box Plots:</strong> Show median, quartiles, and outliers for each site</li>
+                    </ul>
+                    <p><em>Best for:</em> Comparing consistency - a narrow box indicates stable performance, wide box
+                        indicates variable performance</p>
+                </div>
+            </div>
+
+            <div class="tab-card">
+                <div class="tab-header">🗓️ Heatmap</div>
+                <div class="tab-body">
+                    <p>Monthly performance matrix:</p>
+                    <ul>
+                        <li><strong>Sites as rows, Months as columns:</strong> Color intensity shows performance level
+                        </li>
+                        <li>Toggle between Performance Ratio and Specific Yield</li>
+                    </ul>
+                    <p><em>Best for:</em> Identifying seasonal patterns and monthly variations across all sites at once
+                    </p>
+                </div>
+            </div>
+
+            <div class="tab-card">
+                <div class="tab-header">🏆 Rankings</div>
+                <div class="tab-body">
+                    <p>Final rankings and best performer identification:</p>
+                    <ul>
+                        <li><strong>Sites Ranked by PR:</strong> Horizontal bar chart sorted by performance ratio</li>
+                        <li><strong>Sites Ranked by Yield:</strong> Horizontal bar chart sorted by specific yield</li>
+                        <li><strong>Best Performer Badge:</strong> Highlights the top-performing site</li>
+                    </ul>
+                    <p><em>Best for:</em> Executive summary and reporting</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 7: Interpreting Results -->
+        <section id="interpreting-results">
+            <h2>7. Interpreting Results</h2>
+
+            <h3>Common Date Range</h3>
+            <p>The system automatically finds the overlapping date range across all sites. This ensures fair comparison
+                by analyzing the same time period for all sites.</p>
+
+            <div class="info-box info">
+                <h4>💡 Example</h4>
+                <p>If Site A has data from Jan 1 - Dec 31 and Site B has data from Mar 15 - Nov 30, the comparison will
+                    use Mar 15 - Nov 30 (the overlapping period).</p>
+            </div>
+
+            <h3>What Good Results Look Like</h3>
+            <ul>
+                <li><strong>Similar PR across sites:</strong> Sites with similar equipment should have similar PR
+                    regardless of size</li>
+                <li><strong>Higher yield in sunnier locations:</strong> Sites in Dubai should outproduce Tokyo in
+                    absolute terms</li>
+                <li><strong>Consistent box plots:</strong> Narrow boxes indicate stable, well-maintained systems</li>
+            </ul>
+
+            <h3>Red Flags to Watch For</h3>
+            <ul>
+                <li><strong>Sudden PR drops:</strong> May indicate equipment failure, soiling, or shading</li>
+                <li><strong>High irradiance but low PR:</strong> System not converting available sunlight efficiently
+                </li>
+                <li><strong>Wide distribution in box plots:</strong> Inconsistent performance needs investigation</li>
+                <li><strong>Morning/afternoon asymmetry in hourly profiles:</strong> May indicate partial shading</li>
+            </ul>
+        </section>
+
+        <!-- Section 8: Troubleshooting -->
+        <section id="troubleshooting">
+            <h2>8. Troubleshooting & Common Issues</h2>
+
+            <table>
+                <tr>
+                    <th>Issue</th>
+                    <th>Possible Cause</th>
+                    <th>Solution</th>
+                </tr>
+                <tr>
+                    <td>PR shows 0% for all sites</td>
+                    <td>Power column not detected or all values are zero</td>
+                    <td>Ensure your CSV has a column named "Power", "Power (W)", or similar. Check that power values are
+                        non-zero during daytime.</td>
+                </tr>
+                <tr>
+                    <td>"Error processing file"</td>
+                    <td>Invalid CSV format or encoding issues</td>
+                    <td>Save file as UTF-8 CSV. Ensure no special characters in column headers.</td>
+                </tr>
+                <tr>
+                    <td>Date comparison error</td>
+                    <td>Timestamp format not recognized</td>
+                    <td>Use format: YYYY-MM-DD HH:MM:SS or DD/MM/YYYY HH:MM:SS</td>
+                </tr>
+                <tr>
+                    <td>No common date range found</td>
+                    <td>Sites have non-overlapping time periods</td>
+                    <td>Ensure all sites have data for at least some common dates</td>
+                </tr>
+                <tr>
+                    <td>PR values seem too high (>100%)</td>
+                    <td>Incorrect nominal power or irradiance units</td>
+                    <td>Verify nominal power in kWp (not W). Check irradiance is in W/m² (not kW/m²)</td>
+                </tr>
+                <tr>
+                    <td>Charts are empty</td>
+                    <td>Insufficient data after filtering</td>
+                    <td>Ensure sites have enough overlapping data points</td>
+                </tr>
+                <tr>
+                    <td>Site not appearing after upload</td>
+                    <td>Processing failed silently</td>
+                    <td>Check the terminal for error messages. Verify file size is under 200MB.</td>
+                </tr>
+            </table>
+
+            <h3>Data Quality Checks</h3>
+            <div class="info-box tip">
+                <h4>✅ Before uploading, verify:</h4>
+                <ul>
+                    <li>File opens correctly in Excel/Numbers</li>
+                    <li>Timestamps are in chronological order</li>
+                    <li>No negative power values</li>
+                    <li>Irradiance is 0 at night, positive during day</li>
+                    <li>Temperature values are realistic (typically 15-60°C for cell temperature)</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Section 9: Best Practices -->
+        <section id="best-practices">
+            <h2>9. Best Practices</h2>
+
+            <h3>For Accurate Comparisons</h3>
+            <ol>
+                <li>
+                    <strong>Use consistent data intervals:</strong> All sites should ideally have the same logging
+                    frequency (e.g., 15-minute intervals)
+                </li>
+                <li>
+                    <strong>Verify nominal power values:</strong> Double-check installed capacity from commissioning
+                    documents
+                </li>
+                <li>
+                    <strong>Compare similar time periods:</strong> Avoid comparing summer data from one site with winter
+                    data from another
+                </li>
+                <li>
+                    <strong>Consider local conditions:</strong> A site in a dusty environment may have lower PR than a
+                    clean environment
+                </li>
+                <li>
+                    <strong>Look at trends, not just averages:</strong> A site with declining PR needs attention even if
+                    the average is acceptable
+                </li>
+            </ol>
+
+            <h3>For Portfolio Management</h3>
+            <ul>
+                <li>Compare sites monthly to catch issues early</li>
+                <li>Use the heatmap view to spot seasonal patterns</li>
+                <li>Focus on PR for comparing site quality</li>
+                <li>Focus on Specific Yield for revenue forecasting</li>
+            </ul>
+
+            <h3>Data Preparation Tips</h3>
+            <ul>
+                <li>Remove obviously erroneous data points before upload</li>
+                <li>Ensure complete data for the periods you want to compare</li>
+                <li>Use descriptive site names that clearly identify the installation</li>
+            </ul>
+        </section>
+
+        <!-- Section 10: FAQ -->
+        <section id="faq">
+            <h2>10. Frequently Asked Questions</h2>
+
+            <h4>Q: How many sites can I compare at once?</h4>
+            <p>The system supports up to 10 sites simultaneously. Beyond this, visualizations may become crowded.</p>
+
+            <h4>Q: What's the minimum amount of data needed?</h4>
+            <p>We recommend at least 7 days of data per site for meaningful comparison. Monthly comparisons require at
+                least 30 days.</p>
+
+            <h4>Q: Can I compare sites with different panel technologies?</h4>
+            <p>Yes! Since we use normalized metrics, you can compare monocrystalline, polycrystalline, or thin-film
+                installations fairly.</p>
+
+            <h4>Q: Why does one site show higher yield but lower PR?</h4>
+            <p>This typically happens when a site has more solar resource (higher irradiance) but converts it less
+                efficiently. The site produces more absolute energy but underperforms relative to its potential.</p>
+
+            <h4>Q: Can I export the comparison results?</h4>
+            <p>Currently, you can screenshot the visualizations or copy the summary table. Full export functionality is
+                planned for future releases.</p>
+
+            <h4>Q: How is the "common date range" determined?</h4>
+            <p>The system finds the latest start date and earliest end date across all sites, ensuring every site has
+                data for the entire comparison period.</p>
+
+            <h4>Q: What if my sites are in different time zones?</h4>
+            <p>Ensure all timestamps are in local time for each site. The comparison focuses on solar hours (when
+                irradiance > 0), which naturally aligns with local daytime.</p>
+        </section>
+
+        <footer>
+            <p>📋 Multi-Site Comparison User Guide | Solar Panel Monitoring System</p>
+            <p>Last Updated: January 2026</p>
+        </footer>
+    </div>
+</body>
+
+</html>

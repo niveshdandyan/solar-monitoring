@@ -2865,7 +2865,12 @@ def display_multi_site_comparison(export_dir: str):
         plot_multi_site_yield_trend,
         plot_multi_site_pr_boxplot,
         plot_multi_site_monthly_heatmap,
-        plot_multi_site_ranking
+        plot_multi_site_ranking,
+        plot_multi_site_hourly_specific_yield,
+        plot_multi_site_power_per_unit,
+        plot_multi_site_irradiance_combined,
+        plot_multi_site_irradiance_individual,
+        plot_multi_site_hourly_power_irradiance
     )
     from modules.data_parser import parse_data, prepare_analysis_data
     from modules.calculations import calculate_daily_metrics, calculate_monthly_metrics
@@ -2938,9 +2943,8 @@ def display_multi_site_comparison(export_dir: str):
             if st.button("➕ Add This Site", use_container_width=True, type="primary"):
                 try:
                     with st.spinner(f"Processing {site_name}..."):
-                        # Parse the CSV
-                        df = pd.read_csv(uploaded_file)
-                        parsed_df, column_mapping = parse_data(df)
+                        # Parse the CSV - pass file object directly to parse_data
+                        parsed_df, column_mapping, messages = parse_data(uploaded_file)
                         analysis_df = prepare_analysis_data(parsed_df, column_mapping)
                         
                         # Calculate metrics
@@ -3047,6 +3051,8 @@ def display_multi_site_comparison(export_dir: str):
             viz_tabs = st.tabs([
                 "📊 Bar Charts",
                 "📈 Trends",
+                "⏰ Hourly Profiles",
+                "☀️ Irradiance",
                 "📦 Distribution",
                 "🗓️ Heatmap",
                 "🏆 Rankings"
@@ -3084,8 +3090,64 @@ def display_multi_site_comparison(export_dir: str):
                 )
                 if fig_yield_trend:
                     st.pyplot(fig_yield_trend)
+                
+                # Daily power per unit trend
+                st.markdown("### Daily Normalized Power Trend")
+                st.caption("Max daily power per kWp installed - fair comparison across different system sizes.")
+                fig_power_unit = plot_multi_site_power_per_unit(
+                    st.session_state.multi_site_data,
+                    (common_start, common_end),
+                    show_plot=True
+                )
+                if fig_power_unit:
+                    st.pyplot(fig_power_unit)
             
             with viz_tabs[2]:
+                st.markdown("### Hourly Performance Profiles")
+                st.caption("Average hourly patterns across all data - useful for comparing operational behavior.")
+                
+                # Hourly specific yield
+                fig_hourly_yield = plot_multi_site_hourly_specific_yield(
+                    st.session_state.multi_site_data,
+                    show_plot=True
+                )
+                if fig_hourly_yield:
+                    st.pyplot(fig_hourly_yield)
+                
+                # Side-by-side hourly power and irradiance
+                st.markdown("### Power vs Irradiance Profiles")
+                fig_hourly_combined = plot_multi_site_hourly_power_irradiance(
+                    st.session_state.multi_site_data,
+                    show_plot=True
+                )
+                if fig_hourly_combined:
+                    st.pyplot(fig_hourly_combined)
+            
+            with viz_tabs[3]:
+                st.markdown("### Irradiance Comparison")
+                st.caption("Compare solar resource availability across locations.")
+                
+                # Combined irradiance
+                st.markdown("#### Combined Daily Irradiance")
+                fig_irr_combined = plot_multi_site_irradiance_combined(
+                    st.session_state.multi_site_data,
+                    (common_start, common_end),
+                    show_plot=True
+                )
+                if fig_irr_combined:
+                    st.pyplot(fig_irr_combined)
+                
+                # Individual irradiance plots
+                st.markdown("#### Individual Site Irradiance")
+                fig_irr_individual = plot_multi_site_irradiance_individual(
+                    st.session_state.multi_site_data,
+                    (common_start, common_end),
+                    show_plot=True
+                )
+                if fig_irr_individual:
+                    st.pyplot(fig_irr_individual)
+            
+            with viz_tabs[4]:
                 st.markdown("### PR Distribution by Site")
                 st.caption("Box plots show median, quartiles, and outliers - useful for comparing consistency.")
                 
@@ -3097,7 +3159,7 @@ def display_multi_site_comparison(export_dir: str):
                 if fig_box:
                     st.pyplot(fig_box)
             
-            with viz_tabs[3]:
+            with viz_tabs[5]:
                 st.markdown("### Monthly Performance Heatmap")
                 
                 metric_choice = st.radio(
@@ -3116,7 +3178,7 @@ def display_multi_site_comparison(export_dir: str):
                 if fig_heatmap:
                     st.pyplot(fig_heatmap)
             
-            with viz_tabs[4]:
+            with viz_tabs[6]:
                 st.markdown("### Site Rankings")
                 
                 fig_ranking = plot_multi_site_ranking(comparison_df, show_plot=True)

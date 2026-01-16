@@ -1,333 +1,301 @@
+#!/usr/bin/env python3
 """
-Solar Panel Sample Data Generator
-Generates realistic 30-day solar panel monitoring data for testing purposes.
+Sample Data Generator for Multi-Site Comparison Testing
+Generates realistic solar monitoring data for 5 different sites.
 
-System Specifications:
-- Nominal Power: 48W
-- Vmpp: 47V
-- Impp: 1.03A
+Usage:
+    python generate_sample_data.py
+
+Output:
+    Creates 5 CSV files in the 'sample_data/' directory:
+    - site_dubai_commercial.csv      (100 kWp commercial rooftop)
+    - site_hongkong_residential.csv  (5 kWp residential)
+    - site_singapore_industrial.csv  (250 kWp industrial)
+    - site_tokyo_office.csv          (30 kWp office building)
+    - site_sydney_farm.csv           (500 kWp solar farm)
 """
 
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-import random
 import os
 
-# ============================================================================
-# SYSTEM CONFIGURATION - Modify these values to match your system
-# ============================================================================
-
-SYSTEM_CONFIG = {
-    'nominal_power_w': 48,      # Nominal power at STC (W)
-    'vmpp': 47,                 # Voltage at maximum power point (V)
-    'impp': 1.03,               # Current at maximum power point (A)
-    'voc': 52,                  # Open circuit voltage (V) - estimated
-    'isc': 1.15,                # Short circuit current (A) - estimated
-    'temp_coeff': -0.004,       # Power temperature coefficient (%/°C as decimal)
-}
-
-# Data generation parameters
-DATA_CONFIG = {
-    'start_date': '2024-03-01',  # Start date for data
-    'num_days': 30,               # Number of days to generate
-    'interval_minutes': 10,       # Data interval in minutes
-    'sunrise_hour': 6,            # Approximate sunrise hour
-    'sunset_hour': 18,            # Approximate sunset hour
-    'battery_capacity_wh': 150,   # Battery capacity in Wh (smaller for 48W system)
-    'base_load_w': 5,             # Base load consumption (W) - lower to allow charging
-}
-
-# Weather variation parameters
-WEATHER_PROFILES = {
-    'sunny': {'irradiance_peak': 1000, 'cloud_factor': 0.95, 'probability': 0.5},
-    'partly_cloudy': {'irradiance_peak': 850, 'cloud_factor': 0.7, 'probability': 0.3},
-    'cloudy': {'irradiance_peak': 500, 'cloud_factor': 0.4, 'probability': 0.15},
-    'rainy': {'irradiance_peak': 200, 'cloud_factor': 0.2, 'probability': 0.05},
-}
+# Random seed for reproducibility
+np.random.seed(42)
 
 
-def get_daily_weather():
-    """Randomly select weather profile for a day based on probabilities."""
-    rand = random.random()
-    cumulative = 0
-    for weather, params in WEATHER_PROFILES.items():
-        cumulative += params['probability']
-        if rand < cumulative:
-            return weather, params
-    return 'sunny', WEATHER_PROFILES['sunny']
-
-
-def solar_position_factor(hour: float, sunrise: float = 6, sunset: float = 18) -> float:
+def generate_irradiance_profile(hour: int, cloud_factor: float = 1.0, peak_hour: float = 12.0) -> float:
     """
-    Calculate solar position factor (0-1) based on time of day.
-    Uses a sinusoidal model peaking at solar noon.
+    Generate realistic irradiance based on time of day.
+    
+    Args:
+        hour: Hour of day (0-23)
+        cloud_factor: 0.0-1.0, where 1.0 is clear sky
+        peak_hour: Hour of peak irradiance (varies by location)
+    
+    Returns:
+        Irradiance in W/m²
     """
-    if hour < sunrise or hour > sunset:
+    if hour < 6 or hour > 18:
         return 0.0
     
-    # Normalize to 0-π range for sine function
-    day_length = sunset - sunrise
-    normalized = (hour - sunrise) / day_length * np.pi
-    return np.sin(normalized)
+    # Bell curve centered on peak_hour
+    sigma = 3.5  # Width of the curve
+    base_irradiance = 1000 * np.exp(-((hour - peak_hour) ** 2) / (2 * sigma ** 2))
+    
+    # Apply cloud factor with some randomness
+    cloud_effect = cloud_factor * (0.85 + 0.15 * np.random.random())
+    
+    # Add some realistic noise
+    noise = np.random.normal(0, 20)
+    
+    irradiance = max(0, base_irradiance * cloud_effect + noise)
+    
+    return round(irradiance, 1)
 
 
-def calculate_irradiance(hour: float, weather_params: dict, day_variation: float = 1.0) -> float:
+def generate_temperature(hour: int, base_temp: float, irradiance: float) -> float:
     """
-    Calculate irradiance based on time, weather, and daily variation.
+    Generate realistic cell temperature based on ambient and irradiance.
+    
+    Args:
+        hour: Hour of day
+        base_temp: Base ambient temperature for the location
+        irradiance: Current irradiance
+    
+    Returns:
+        Cell temperature in °C
     """
-    base_factor = solar_position_factor(
-        hour, 
-        DATA_CONFIG['sunrise_hour'], 
-        DATA_CONFIG['sunset_hour']
-    )
+    # Ambient temperature variation throughout the day
+    ambient_variation = 5 * np.sin((hour - 6) * np.pi / 12) if 6 <= hour <= 18 else -3
+    ambient = base_temp + ambient_variation + np.random.normal(0, 1)
     
-    if base_factor == 0:
-        return 0.0
+    # Cell temperature is typically 25-35°C above ambient when irradiance is high
+    cell_rise = (irradiance / 1000) * (25 + np.random.normal(0, 3))
     
-    # Apply weather and random cloud variations
-    irradiance = weather_params['irradiance_peak'] * base_factor * weather_params['cloud_factor']
-    
-    # Add some random fluctuation (clouds passing)
-    fluctuation = 1 + random.uniform(-0.15, 0.10)
-    irradiance *= fluctuation * day_variation
-    
-    return max(0, irradiance)
+    return round(ambient + cell_rise, 1)
 
 
-def calculate_temperature(hour: float, base_temp: float, irradiance: float) -> float:
+def generate_site_data(
+    site_name: str,
+    nominal_power_kw: float,
+    start_date: str,
+    end_date: str,
+    base_temp: float = 25.0,
+    peak_hour: float = 12.0,
+    avg_cloud_factor: float = 0.85,
+    system_efficiency: float = 0.95,  # Base system efficiency (affects PR)
+    degradation_rate: float = 0.0,    # Annual degradation
+    interval_minutes: int = 15
+) -> pd.DataFrame:
     """
-    Calculate cell temperature based on ambient temp and irradiance.
-    Cell temp = Ambient + (NOCT - 20) * (Irradiance / 800)
+    Generate realistic solar monitoring data for a site.
+    
+    Args:
+        site_name: Name for logging
+        nominal_power_kw: System nominal power in kW (kWp)
+        start_date: Start date (YYYY-MM-DD)
+        end_date: End date (YYYY-MM-DD)
+        base_temp: Average ambient temperature
+        peak_hour: Hour of peak irradiance
+        avg_cloud_factor: Average cloudiness (1.0 = clear)
+        system_efficiency: System efficiency factor (affects PR)
+        degradation_rate: Annual degradation rate
+        interval_minutes: Data logging interval
+    
+    Returns:
+        DataFrame with solar monitoring data
     """
-    # Ambient temperature varies throughout day
-    morning_temp = base_temp - 3
-    peak_temp = base_temp + 5
-    evening_temp = base_temp
+    print(f"Generating data for {site_name}...")
     
-    if hour < 6:
-        ambient = morning_temp
-    elif hour < 14:
-        # Warming phase
-        progress = (hour - 6) / 8
-        ambient = morning_temp + (peak_temp - morning_temp) * progress
-    else:
-        # Cooling phase
-        progress = (hour - 14) / 10
-        ambient = peak_temp - (peak_temp - evening_temp) * min(1, progress)
+    # Generate date range
+    start = datetime.strptime(start_date, '%Y-%m-%d')
+    end = datetime.strptime(end_date, '%Y-%m-%d')
     
-    # Cell temperature is higher than ambient due to solar heating
-    # NOCT assumption ~45°C
-    noct_rise = (45 - 20) * (irradiance / 800) if irradiance > 0 else 0
-    cell_temp = ambient + noct_rise
-    
-    # Add small random variation
-    cell_temp += random.uniform(-1, 1)
-    
-    return round(cell_temp, 1)
-
-
-def calculate_voltage_current(irradiance: float, temperature: float, config: dict) -> tuple:
-    """
-    Calculate DC voltage and current based on irradiance and temperature.
-    Includes temperature derating and low-light effects.
-    """
-    if irradiance < 10:
-        return 0.0, 0.0
-    
-    # Current is roughly proportional to irradiance
-    irradiance_factor = irradiance / 1000
-    current = config['impp'] * irradiance_factor
-    
-    # Add small random variation
-    current *= (1 + random.uniform(-0.05, 0.05))
-    current = max(0, min(current, config['isc']))
-    
-    # Voltage drops slightly at high temperatures and low irradiance
-    temp_effect = 1 + config['temp_coeff'] * (temperature - 25)
-    
-    # Voltage also varies with load/irradiance
-    if irradiance_factor > 0.1:
-        voltage = config['vmpp'] * temp_effect
-    else:
-        # At very low irradiance, voltage drops more
-        voltage = config['vmpp'] * temp_effect * (irradiance_factor * 5)
-    
-    # Add small random variation
-    voltage *= (1 + random.uniform(-0.02, 0.02))
-    voltage = max(0, min(voltage, config['voc']))
-    
-    return round(voltage, 2), round(current, 3)
-
-
-def simulate_battery_soc(power_generated: float, soc: float, dt_hours: float, config: dict) -> float:
-    """
-    Simulate battery State of Charge based on generation and consumption.
-    """
-    battery_capacity = DATA_CONFIG['battery_capacity_wh']
-    base_load = DATA_CONFIG['base_load_w']
-    
-    # Net power to battery
-    net_power = power_generated - base_load
-    
-    # Energy change in this interval
-    energy_change_wh = net_power * dt_hours
-    
-    # Update SoC
-    soc_change = (energy_change_wh / battery_capacity) * 100
-    new_soc = soc + soc_change
-    
-    # Clamp between 0 and 100
-    new_soc = max(0, min(100, new_soc))
-    
-    return round(new_soc, 1)
-
-
-def generate_sample_data():
-    """
-    Generate complete sample dataset for solar panel monitoring.
-    """
-    print("🌞 Solar Panel Sample Data Generator")
-    print("=" * 50)
-    print(f"System: {SYSTEM_CONFIG['nominal_power_w']}W panel")
-    print(f"Vmpp: {SYSTEM_CONFIG['vmpp']}V, Impp: {SYSTEM_CONFIG['impp']}A")
-    print(f"Generating {DATA_CONFIG['num_days']} days of data at {DATA_CONFIG['interval_minutes']}min intervals")
-    print("=" * 50)
+    # Generate timestamps at specified interval
+    timestamps = []
+    current = start
+    while current <= end:
+        timestamps.append(current)
+        current += timedelta(minutes=interval_minutes)
     
     data = []
     
-    start_date = datetime.strptime(DATA_CONFIG['start_date'], '%Y-%m-%d')
-    interval = timedelta(minutes=DATA_CONFIG['interval_minutes'])
-    dt_hours = DATA_CONFIG['interval_minutes'] / 60
+    for ts in timestamps:
+        hour = ts.hour + ts.minute / 60
+        
+        # Daily weather variation (some days are cloudier)
+        day_of_year = ts.timetuple().tm_yday
+        daily_cloud = avg_cloud_factor + 0.15 * np.sin(day_of_year * 2 * np.pi / 365) + np.random.normal(0, 0.1)
+        daily_cloud = np.clip(daily_cloud, 0.3, 1.0)
+        
+        # Generate irradiance
+        irradiance = generate_irradiance_profile(hour, daily_cloud, peak_hour)
+        
+        # Generate temperature
+        temperature = generate_temperature(int(hour), base_temp, irradiance)
+        
+        # Calculate expected power
+        # P = P_stc * (G/1000) * (1 + gamma * (T - 25))
+        temp_coeff = -0.004  # -0.4%/°C
+        temp_factor = 1 + temp_coeff * (temperature - 25)
+        expected_power = nominal_power_kw * 1000 * (irradiance / 1000) * temp_factor
+        
+        # Apply system efficiency and some random variation
+        efficiency_variation = system_efficiency * (0.95 + 0.10 * np.random.random())
+        actual_power = expected_power * efficiency_variation
+        
+        # Add some random issues (inverter trips, shading events, etc.)
+        if np.random.random() < 0.005 and irradiance > 100:  # 0.5% chance of anomaly
+            actual_power = actual_power * np.random.uniform(0, 0.3)  # Partial or full loss
+        
+        # Night time - power should be 0
+        if irradiance < 10:
+            actual_power = 0
+        
+        # Calculate voltage and current (simplified model)
+        # Voltage is relatively stable, current varies with power
+        if actual_power > 0:
+            voltage = 35 + np.random.normal(0, 1) + (temperature - 25) * (-0.1)  # Voltage drops with temp
+            current = actual_power / voltage if voltage > 0 else 0
+        else:
+            voltage = 0
+            current = 0
+        
+        # SoC simulation (battery system)
+        # Simple model: charges during day, discharges at night
+        if 8 <= hour <= 16:
+            soc = min(100, 60 + (hour - 8) * 5 + np.random.normal(0, 2))
+        elif hour < 8:
+            soc = max(30, 95 - (8 - hour) * 8 + np.random.normal(0, 2))
+        else:
+            soc = max(30, 100 - (hour - 16) * 10 + np.random.normal(0, 2))
+        
+        soc = np.clip(soc, 0, 100)
+        
+        data.append({
+            'Timestamp': ts.strftime('%Y-%m-%d %H:%M:%S'),
+            'Power (W)': round(max(0, actual_power), 2),
+            'Voltage (V)': round(max(0, voltage), 2),
+            'Current (A)': round(max(0, current), 2),
+            'Irradiance (W/m2)': round(irradiance, 1),
+            'Temperature (C)': round(temperature, 1),
+            'SoC (%)': round(soc, 1)
+        })
     
-    # Initial battery SoC
-    current_soc = 50.0
-    
-    # Generate data for each day
-    for day in range(DATA_CONFIG['num_days']):
-        current_date = start_date + timedelta(days=day)
-        weather_type, weather_params = get_daily_weather()
-        
-        # Daily variation factor (some days are better than others)
-        day_variation = random.uniform(0.85, 1.15)
-        
-        # Random base temperature for the day (20-35°C range)
-        base_temp = random.uniform(22, 32)
-        
-        print(f"Day {day + 1}: {current_date.strftime('%Y-%m-%d')} - {weather_type.upper()}, Base Temp: {base_temp:.1f}°C")
-        
-        # Generate data points for each interval
-        current_time = datetime.combine(current_date, datetime.min.time())
-        end_of_day = current_time + timedelta(days=1)
-        
-        while current_time < end_of_day:
-            hour = current_time.hour + current_time.minute / 60
-            
-            # Calculate all parameters
-            irradiance = calculate_irradiance(hour, weather_params, day_variation)
-            temperature = calculate_temperature(hour, base_temp, irradiance)
-            voltage, current = calculate_voltage_current(irradiance, temperature, SYSTEM_CONFIG)
-            
-            # Calculate power
-            power = voltage * current
-            
-            # When SoC >= 95%, system may curtail (reduce) power generation
-            if current_soc >= 95 and power > 5:
-                # Battery full - curtail generation (common in off-grid systems)
-                curtail_factor = max(0.1, (100 - current_soc) / 5)
-                current *= curtail_factor
-                power = voltage * current
-            
-            # Simulate battery SoC
-            current_soc = simulate_battery_soc(power, current_soc, dt_hours, SYSTEM_CONFIG)
-            
-            # Store data point
-            data.append({
-                'Timestamp': current_time.strftime('%Y-%m-%d %H:%M'),
-                'DC Current (A)': round(current, 3),
-                'DC Voltage (V)': round(voltage, 2),
-                'Irradiance (W/m2)': round(irradiance, 1),
-                'Cell Temperature (C)': round(temperature, 1),
-                'Battery SoC (%)': round(current_soc, 1)
-            })
-            
-            current_time += interval
-    
-    # Create DataFrame
     df = pd.DataFrame(data)
+    print(f"  Generated {len(df):,} records from {start_date} to {end_date}")
     
     return df
 
 
-def save_data(df: pd.DataFrame, output_dir: str = None):
-    """
-    Save generated data to CSV file.
-    """
-    if output_dir is None:
-        output_dir = os.path.dirname(os.path.abspath(__file__))
+def main():
+    # Create output directory
+    output_dir = os.path.join(os.path.dirname(__file__), 'sample_data')
+    os.makedirs(output_dir, exist_ok=True)
     
-    output_path = os.path.join(output_dir, 'sample_data', 'generated_30day_data.csv')
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    # Define date range (2 months)
+    start_date = '2025-11-01'
+    end_date = '2025-12-31'
     
-    df.to_csv(output_path, index=False)
-    print(f"\n✅ Data saved to: {output_path}")
-    print(f"   Total rows: {len(df)}")
-    print(f"   Date range: {df['Timestamp'].iloc[0]} to {df['Timestamp'].iloc[-1]}")
+    # Define 5 different sites with varying characteristics
+    sites = [
+        {
+            'filename': 'site_dubai_commercial.csv',
+            'name': 'Dubai Commercial Rooftop',
+            'nominal_power_kw': 100.0,
+            'base_temp': 32.0,          # Hot climate
+            'peak_hour': 12.5,
+            'avg_cloud_factor': 0.92,    # Very sunny
+            'system_efficiency': 0.88,   # Good but affected by heat/dust
+            'interval_minutes': 15
+        },
+        {
+            'filename': 'site_hongkong_residential.csv',
+            'name': 'Hong Kong Residential',
+            'nominal_power_kw': 5.0,
+            'base_temp': 22.0,           # Subtropical
+            'peak_hour': 12.0,
+            'avg_cloud_factor': 0.75,    # More clouds
+            'system_efficiency': 0.82,   # Some shading issues
+            'interval_minutes': 5        # Higher resolution data
+        },
+        {
+            'filename': 'site_singapore_industrial.csv',
+            'name': 'Singapore Industrial',
+            'nominal_power_kw': 250.0,
+            'base_temp': 28.0,           # Tropical
+            'peak_hour': 12.0,
+            'avg_cloud_factor': 0.70,    # Tropical clouds/rain
+            'system_efficiency': 0.92,   # Well-maintained industrial
+            'interval_minutes': 15
+        },
+        {
+            'filename': 'site_tokyo_office.csv',
+            'name': 'Tokyo Office Building',
+            'nominal_power_kw': 30.0,
+            'base_temp': 18.0,           # Temperate
+            'peak_hour': 12.0,
+            'avg_cloud_factor': 0.78,    # Variable weather
+            'system_efficiency': 0.90,   # Good maintenance
+            'interval_minutes': 10
+        },
+        {
+            'filename': 'site_sydney_farm.csv',
+            'name': 'Sydney Solar Farm',
+            'nominal_power_kw': 500.0,
+            'base_temp': 24.0,           # Temperate/warm
+            'peak_hour': 12.5,
+            'avg_cloud_factor': 0.88,    # Sunny climate
+            'system_efficiency': 0.94,   # Excellent maintenance
+            'interval_minutes': 15
+        }
+    ]
     
-    return output_path
+    print("=" * 60)
+    print("Multi-Site Sample Data Generator")
+    print("=" * 60)
+    print(f"Date range: {start_date} to {end_date}")
+    print(f"Output directory: {output_dir}")
+    print("=" * 60)
+    print()
+    
+    for site in sites:
+        df = generate_site_data(
+            site_name=site['name'],
+            nominal_power_kw=site['nominal_power_kw'],
+            start_date=start_date,
+            end_date=end_date,
+            base_temp=site['base_temp'],
+            peak_hour=site['peak_hour'],
+            avg_cloud_factor=site['avg_cloud_factor'],
+            system_efficiency=site['system_efficiency'],
+            interval_minutes=site['interval_minutes']
+        )
+        
+        # Save to CSV
+        filepath = os.path.join(output_dir, site['filename'])
+        df.to_csv(filepath, index=False)
+        print(f"  Saved: {filepath}")
+        print()
+    
+    print("=" * 60)
+    print("Summary of Generated Sites:")
+    print("=" * 60)
+    print(f"{'Site Name':<30} {'Power':<12} {'Efficiency':<12} {'Climate'}")
+    print("-" * 60)
+    for site in sites:
+        print(f"{site['name']:<30} {site['nominal_power_kw']:<12.1f} {site['system_efficiency']*100:<11.0f}% "
+              f"{'Hot' if site['base_temp'] > 28 else 'Tropical' if site['base_temp'] > 25 else 'Temperate'}")
+    print()
+    print("✅ All sample data files generated successfully!")
+    print(f"\nFiles are located in: {output_dir}")
+    print("\nTo test in the Multi-Site Comparison:")
+    print("  1. Click '🏢 Multi-Site' in the sidebar")
+    print("  2. Upload each CSV file one at a time")
+    print("  3. Set the Nominal Power (kWp) for each site")
+    print("  4. View the comparison!")
 
 
-def print_summary(df: pd.DataFrame):
-    """
-    Print summary statistics of generated data.
-    """
-    print("\n" + "=" * 50)
-    print("📊 DATA SUMMARY")
-    print("=" * 50)
-    
-    # Calculate power
-    df['Power_W'] = df['DC Current (A)'] * df['DC Voltage (V)']
-    
-    # Daytime data only (irradiance > 50)
-    daytime = df[df['Irradiance (W/m2)'] > 50]
-    
-    print(f"\n📈 Irradiance:")
-    print(f"   Max: {df['Irradiance (W/m2)'].max():.1f} W/m²")
-    print(f"   Daytime Avg: {daytime['Irradiance (W/m2)'].mean():.1f} W/m²")
-    
-    print(f"\n🌡️ Temperature:")
-    print(f"   Min: {df['Cell Temperature (C)'].min():.1f}°C")
-    print(f"   Max: {df['Cell Temperature (C)'].max():.1f}°C")
-    print(f"   Avg: {df['Cell Temperature (C)'].mean():.1f}°C")
-    
-    print(f"\n⚡ Power Generation:")
-    print(f"   Max Power: {df['Power_W'].max():.2f} W")
-    print(f"   Daytime Avg: {daytime['Power_W'].mean():.2f} W")
-    
-    print(f"\n🔋 Battery SoC:")
-    print(f"   Min: {df['Battery SoC (%)'].min():.1f}%")
-    print(f"   Max: {df['Battery SoC (%)'].max():.1f}%")
-    
-    # Count high SoC periods
-    high_soc = len(df[df['Battery SoC (%)'] >= 95])
-    print(f"   High SoC (≥95%) periods: {high_soc} ({100*high_soc/len(df):.1f}%)")
-    
-    print("\n" + "=" * 50)
-
-
-if __name__ == "__main__":
-    # Set random seed for reproducibility (comment out for different data each run)
-    random.seed(42)
-    np.random.seed(42)
-    
-    # Generate data
-    df = generate_sample_data()
-    
-    # Print summary
-    print_summary(df)
-    
-    # Save to CSV
-    output_path = save_data(df)
-    
-    print("\n🎉 Sample data generation complete!")
-    print(f"   You can now upload this file to the Solar Monitoring app.")
+if __name__ == '__main__':
+    main()

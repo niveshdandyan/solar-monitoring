@@ -87,8 +87,8 @@ def calculate_site_summary(
     total_energy_kwh = daily_metrics['Actual_Energy_kWh'].sum() if 'Actual_Energy_kWh' in daily_metrics.columns else 0
     
     # Average PR
-    avg_pr = daily_metrics['Performance_Ratio'].mean() if 'Performance_Ratio' in daily_metrics.columns else 0
-    pr_std = daily_metrics['Performance_Ratio'].std() if 'Performance_Ratio' in daily_metrics.columns else 0
+    avg_pr = daily_metrics['PR_pct'].mean() if 'PR_pct' in daily_metrics.columns else 0
+    pr_std = daily_metrics['PR_pct'].std() if 'PR_pct' in daily_metrics.columns else 0
     
     # Specific Yield (total)
     total_specific_yield = total_energy_kwh / nominal_power_kwp if nominal_power_kwp > 0 else 0
@@ -182,7 +182,12 @@ def create_comparison_dataframe(
         
         # Filter by date range if specified
         if date_range and date_range[0] and date_range[1]:
-            mask = (daily_metrics['Date'] >= date_range[0]) & (daily_metrics['Date'] <= date_range[1])
+            # Convert string dates to date objects for comparison
+            start_dt = pd.to_datetime(date_range[0]).date()
+            end_dt = pd.to_datetime(date_range[1]).date()
+            # Ensure Date column is comparable
+            daily_dates = pd.to_datetime(daily_metrics['Date']).dt.date
+            mask = (daily_dates >= start_dt) & (daily_dates <= end_dt)
             filtered_metrics = daily_metrics[mask]
         else:
             filtered_metrics = daily_metrics
@@ -192,8 +197,8 @@ def create_comparison_dataframe(
         
         # Calculate metrics for the period
         total_energy = filtered_metrics['Actual_Energy_kWh'].sum() if 'Actual_Energy_kWh' in filtered_metrics.columns else 0
-        avg_pr = filtered_metrics['Performance_Ratio'].mean() if 'Performance_Ratio' in filtered_metrics.columns else 0
-        pr_std = filtered_metrics['Performance_Ratio'].std() if 'Performance_Ratio' in filtered_metrics.columns else 0
+        avg_pr = filtered_metrics['PR_pct'].mean() if 'PR_pct' in filtered_metrics.columns else 0
+        pr_std = filtered_metrics['PR_pct'].std() if 'PR_pct' in filtered_metrics.columns else 0
         
         specific_yield = total_energy / site_data['nominal_power_kwp'] if site_data['nominal_power_kwp'] > 0 else 0
         days = len(filtered_metrics)
@@ -226,7 +231,7 @@ def create_comparison_dataframe(
 
 def get_daily_metrics_for_comparison(
     sites: Dict[str, Dict],
-    metric: str = 'Performance_Ratio',
+    metric: str = 'PR_pct',
     date_range: Tuple[str, str] = None
 ) -> pd.DataFrame:
     """
@@ -234,7 +239,7 @@ def get_daily_metrics_for_comparison(
     
     Args:
         sites: Dictionary of site data
-        metric: Column name to extract (e.g., 'Performance_Ratio', 'Actual_Energy_kWh')
+        metric: Column name to extract (e.g., 'PR_pct', 'Actual_Energy_kWh')
         date_range: Optional date filter
     
     Returns:
@@ -246,7 +251,11 @@ def get_daily_metrics_for_comparison(
         daily = site_data['daily_metrics'].copy()
         
         if date_range and date_range[0] and date_range[1]:
-            mask = (daily['Date'] >= date_range[0]) & (daily['Date'] <= date_range[1])
+            # Convert string dates to date objects for comparison
+            start_dt = pd.to_datetime(date_range[0]).date()
+            end_dt = pd.to_datetime(date_range[1]).date()
+            daily_dates = pd.to_datetime(daily['Date']).dt.date
+            mask = (daily_dates >= start_dt) & (daily_dates <= end_dt)
             daily = daily[mask]
         
         if metric in daily.columns:
