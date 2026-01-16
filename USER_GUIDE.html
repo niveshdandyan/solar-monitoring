@@ -466,7 +466,228 @@
                     </tbody>
                 </table>
 
-                <h3>3.2 Analysis Settings</h3>
+                <h3>3.2 Data Filtering Settings</h3>
+
+                <p>The system provides advanced <strong>anomalous data filtering</strong> capabilities to help you
+                    accurately analyze your solar system's performance by excluding problematic data points that could
+                    distort your metrics.</p>
+
+                <div class="alert alert-important">
+                    <strong>⚠️ What is Anomalous Data?</strong>
+                    Anomalous data refers to timestamps where your system <strong>should be generating power</strong>
+                    (high irradiance) but is <strong>not producing any output</strong> (zero or very low power). This
+                    can occur due to:
+                    <ul>
+                        <li><strong>System Faults:</strong> Inverter failures, disconnections, or circuit breakers
+                            tripping</li>
+                        <li><strong>Shading Events:</strong> Unexpected shadows from trees, buildings, or passing clouds
+                        </li>
+                        <li><strong>Maintenance:</strong> Periods when the system was intentionally turned off</li>
+                        <li><strong>Battery Curtailment:</strong> When batteries are full and the system stops charging
+                        </li>
+                    </ul>
+                    Including these anomalous periods in your performance calculations can artificially lower your
+                    Performance Ratio (PR) and averages, making a healthy system appear to be underperforming.
+                </div>
+
+                <h4>Irradiance Threshold (W/m²)</h4>
+                <p>This setting defines the <strong>minimum irradiance level</strong> at which your system should be
+                    producing power.</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Default Value</strong></td>
+                            <td>50 W/m²</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Allowed Range</strong></td>
+                            <td>0 to 1000 W/m²</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Typical Values</strong></td>
+                            <td>30-100 W/m² depending on panel sensitivity</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Purpose</strong></td>
+                            <td>Timestamps with irradiance above this value are expected to produce power</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="alert alert-tip">
+                    <strong>💡 Choosing the Right Threshold</strong>
+                    <ul>
+                        <li><strong>Lower values (30-50 W/m²):</strong> Catches more potential issues but may include
+                            legitimate low-light periods where minimal power is expected</li>
+                        <li><strong>Higher values (80-100 W/m²):</strong> More conservative, only flags clear anomalies
+                            during good sunlight conditions</li>
+                        <li><strong>Recommendation:</strong> Start with 50 W/m² and adjust based on your system's actual
+                            low-light performance</li>
+                    </ul>
+                </div>
+
+                <h4>Power Threshold (W)</h4>
+                <p>This defines what constitutes <strong>"no power output"</strong> for filtering purposes.</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Default Value</strong></td>
+                            <td>0 W</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Allowed Range</strong></td>
+                            <td>0 to 100 W</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Typical Values</strong></td>
+                            <td>0-10 W for most systems</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Purpose</strong></td>
+                            <td>Power at or below this value is considered "not producing"</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="alert alert-note">
+                    <strong>📊 Why You Might Increase This</strong>
+                    <ul>
+                        <li><strong>Measurement Noise:</strong> Some monitoring systems report small phantom readings
+                            (1-5W) even when the panel is off</li>
+                        <li><strong>Internal Consumption:</strong> Inverter self-consumption might show as minimal power
+                            draw</li>
+                        <li><strong>Example:</strong> If your system shows 3W at night due to inverter consumption, set
+                            this to 5W to avoid false positives</li>
+                    </ul>
+                </div>
+
+                <h4>Low SoC Threshold (%)</h4>
+                <p>This setting helps distinguish between <strong>system faults</strong> and <strong>battery-full
+                        curtailment</strong>.</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Default Value</strong></td>
+                            <td>95%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Allowed Range</strong></td>
+                            <td>50% to 100%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Purpose</strong></td>
+                            <td>Only flag as anomalous if battery SoC is <em>below</em> this threshold</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="alert alert-important">
+                    <strong>⚠️ Understanding This Setting</strong>
+                    <p>The filtering logic works as follows:</p>
+                    <pre><code>Data point is ANOMALOUS if ALL conditions are met:
+1. Irradiance > Irradiance Threshold (e.g., 50 W/m²)
+2. Power ≤ Power Threshold (e.g., 0 W)
+3. SoC < Low SoC Threshold (e.g., 95%)
+                    </code></pre>
+                    <p><strong>Why condition #3 matters:</strong> When your battery is at 95%+ charge, the system
+                        intentionally reduces or stops power generation to protect the battery. This is <strong>normal
+                            behavior</strong>, not a fault. By setting this threshold high (e.g., 95%), you ensure that
+                        periods of legitimate curtailment (when battery is full) are NOT flagged as anomalies.</p>
+                    <p><strong>Conversely:</strong> If the system has high irradiance, zero power output, but the
+                        battery is only at 60% SoC, this indicates a genuine problem since the battery should still be
+                        accepting charge.</p>
+                </div>
+
+                <div class="alert alert-tip">
+                    <strong>💡 Recommended Settings by System Type</strong>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>System Type</th>
+                                <th>Low SoC Threshold</th>
+                                <th>Reasoning</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>No Battery System</strong></td>
+                                <td>100% (or N/A if no SoC data)</td>
+                                <td>No curtailment scenarios to exclude</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Lead-Acid Batteries</strong></td>
+                                <td>90-95%</td>
+                                <td>Often stop charging around 90-95% to prevent overcharging</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Lithium Batteries</strong></td>
+                                <td>95-98%</td>
+                                <td>Can charge closer to 100% but may curtail at 95%+</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Grid-Tied (No Storage)</strong></td>
+                                <td>100%</td>
+                                <td>No battery, so all zero-power anomalies are genuine faults</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4>How to Use Data Filtering</h4>
+                <p>After configuring your thresholds in the sidebar, data filtering is applied in two main areas:</p>
+
+                <ol>
+                    <li><strong>Custom Range Performance Graphs:</strong> Toggle between "All Data" and "Filtered Data"
+                        modes using the Data Mode radio button</li>
+                    <li><strong>Monthly Performance Graphs:</strong> Toggle between "All Data" and "Filtered Data" modes
+                        to see hourly averages with/without anomalies</li>
+                </ol>
+
+                <p>When "Filtered Data" mode is active, the system will:</p>
+                <ul>
+                    <li>✅ Exclude all timestamps matching the anomalous criteria</li>
+                    <li>✅ Recalculate hourly averages using only clean data</li>
+                    <li>✅ Display comparison statistics showing how many points were excluded</li>
+                    <li>✅ Show before/after comparison graphs</li>
+                </ul>
+
+                <div class="alert alert-note">
+                    <strong>📊 Example Use Case</strong>
+                    <p><strong>Scenario:</strong> You notice your average monthly power output is 20% lower than
+                        expected in June.</p>
+                    <ol>
+                        <li>Navigate to <strong>Monthly Performance Graphs</strong> and select June</li>
+                        <li>Set Data Mode to "All Data" - you see low averages</li>
+                        <li>Change Data Mode to "Filtered Data"</li>
+                        <li>System reports: "Excluded 145 of 8,640 data points (1.7%)" </li>
+                        <li>Filtered averages now show 25% higher power output</li>
+                        <li><strong>Conclusion:</strong> Your system was offline for brief periods (maybe inverter
+                            resets), but overall performance was actually good</li>
+                    </ol>
+                </div>
+
+                <h3>3.3 Analysis Settings</h3>
 
                 <h4>SoC Threshold for PR (%)</h4>
                 <p>This setting controls how the system handles data when your <strong>battery is nearly full</strong>.
@@ -480,6 +701,56 @@
                     periods from PR calculations while still including them in total energy counts.
                 </div>
             </section>
+
+            <h3>3.4 Daytime Definition</h3>
+            <p>For accurate performance analysis (e.g., specific yield, operating hours), crucial metrics are only
+                calculated during <strong>daytime hours</strong>. You can configure how the system defines "daytime".
+            </p>
+
+            <div class="alert alert-note">
+                <strong>📝 Purpose</strong>
+                Limiting analysis to daytime hours prevents nighttime standby power consumption (or zero production)
+                from skewing your average power and efficiency metrics.
+            </div>
+
+            <h4>Daytime Mode Configuration</h4>
+            <p>In the sidebar, you will find the <strong>Daytime Definition</strong> settings:</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Setting</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Use sunrise/sunset from weather data</strong></td>
+                        <td>
+                            Enable this checkbox to dynamically calculate daytime based on <strong>actual sunrise and
+                                sunset times</strong> for your location and date.
+                            <ul>
+                                <li><strong>Requires Location:</strong> You must set a location in the "Weather
+                                    Analysis" tool first.</li>
+                                <li><strong>Most Accurate:</strong> Adjusts automatically for seasonality (longer days
+                                    in summer, shorter in winter).</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Manual Schedule (Fixed)</strong></td>
+                        <td>
+                            If the dynamic option is unchecked (or no location set), the system uses fixed hours.
+                            <ul>
+                                <li><strong>Daytime Start:</strong> Hour to start analysis (default: 6 [6:00 AM])</li>
+                                <li><strong>Daytime End:</strong> Hour to stop analysis (default: 18 [6:00 PM])</li>
+                            </ul>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            </section>
+
 
             <!-- Section 4: Uploading Data -->
             <section id="uploading">
@@ -861,6 +1132,7 @@ Temperature Factor = 1 + (Temp Coefficient × (Cell Temp - 25°C))</code></pre>
                     <figcaption>Figure 5: Monthly Analysis - Hourly averaged performance metrics</figcaption>
                 </figure>
 
+
                 <h3>10.1 Understanding Hourly Averages</h3>
                 <p>These graphs show the <strong>average behavior</strong> of your system at each hour of the day
                     across all days in the selected month.</p>
@@ -870,6 +1142,49 @@ Temperature Factor = 1 + (Temp Coefficient × (Cell Temp - 25°C))</code></pre>
                     <li><strong>Use Case</strong>: Identifies consistent shading issues or orientation problems.
                     </li>
                 </ul>
+
+                <h3>10.2 Data Mode in Monthly Analysis</h3>
+                <p>Similar to Custom Range, Monthly Analysis features a <strong>Data Mode</strong> toggle offering:</p>
+
+                <ul>
+                    <li><strong>All Data:</strong> Hourly averages include all timestamps, including system faults and
+                        downtimes</li>
+                    <li><strong>Filtered Data:</strong> Hourly averages exclude anomalous timestamps, showing true
+                        performance when system is operating</li>
+                </ul>
+
+                <div class="alert alert-tip">
+                    <strong>💡 Monthly vs Custom Range Filtering</strong>
+                    <p>While both features support Data Mode, they serve different purposes:</p>
+                    <ul>
+                        <li><strong>Monthly Analysis:</strong> Best for understanding <em>typical hourly patterns</em>
+                            in a month (e.g., "Does my system always underperform at 3 PM?")</li>
+                        <li><strong>Custom Range:</strong> Best for <em>specific time period investigation</em> (e.g.,
+                            "What went wrong the week of June 10-17?")</li>
+                    </ul>
+                </div>
+
+                <h4>Interpreting Filtered Monthly Averages</h4>
+                <p>When you enable Filtered Data mode on monthly graphs:</p>
+                <ol>
+                    <li><strong>Each hour's average</strong> excludes anomalous points from that hour across all days
+                    </li>
+                    <li><strong>Pattern detection</strong> becomes more accurate (e.g., 2 PM dip due to shading vs.
+                        fault)</li>
+                    <li><strong>Comparison baseline</strong> shows your system's true capability hour-by-hour</li>
+                </ol>
+
+                <div class="alert alert-note">
+                    <strong>📊 Example Scenario</strong>
+                    <p>Your "All Data" graph shows low average power at 10 AM every day in July. Switching to "Filtered
+                        Data":</p>
+                    <ul>
+                        <li><strong>If 10 AM average increases significantly:</strong> You had recurring faults at that
+                            time (maybe inverter restart cycle)</li>
+                        <li><strong>If 10 AM average stays low:</strong> You have a genuine issue like shading or panel
+                            orientation problem affecting that hour</li>
+                    </ul>
+                </div>
             </section>
 
             <!-- Section 11: Calendar View -->
@@ -910,8 +1225,174 @@ Temperature Factor = 1 + (Temp Coefficient × (Cell Temp - 25°C))</code></pre>
                     <figcaption>Figure 7: Custom Range Analysis - Selection and analysis of specific date ranges
                     </figcaption>
                 </figure>
+
                 <p>Select any <strong>Start Date</strong> and <strong>End Date</strong> to generate averaged graphs
                     and aggregated metrics for that specific window.</p>
+
+                <h3>12.1 Data Mode Selection</h3>
+                <p>The Custom Range tab features a <strong>Data Mode</strong> toggle that allows you to compare
+                    performance metrics with and without anomalous data:</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mode</th>
+                            <th>Description</th>
+                            <th>Use Case</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>All Data</strong></td>
+                            <td>Includes every single data point in the selected range</td>
+                            <td>Raw, unfiltered view showing actual recorded values including faults and downtimes</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Filtered Data</strong></td>
+                            <td>Excludes anomalous timestamps based on your filtering settings</td>
+                            <td>Clean view showing what your system's performance would look like without
+                                faults/interruptions</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>12.2 Understanding All Data vs Filtered Data</h3>
+
+                <h4>When to Use "All Data"</h4>
+                <ul>
+                    <li><strong>Initial Analysis:</strong> Start with "All Data" to see the complete picture</li>
+                    <li><strong>Fault Detection:</strong> Identify when and how often problems occurred</li>
+                    <li><strong>Total Energy Accounting:</strong> Verify total energy production matches utility billing
+                    </li>
+                    <li><strong>Baseline Comparison:</strong> Understand raw performance before filtering</li>
+                </ul>
+
+                <h4>When to Use "Filtered Data"</h4>
+                <ul>
+                    <li><strong>True Performance Assessment:</strong> Determine if your system is performing well when
+                        it's actually running</li>
+                    <li><strong>Comparison with Specifications:</strong> Compare against manufacturer's rated
+                        performance</li>
+                    <li><strong>Troubleshooting:</strong> Isolate whether low output is due to system issues or
+                        temporary faults</li>
+                    <li><strong>Financial Analysis:</strong> Calculate potential revenue if faults were eliminated</li>
+                </ul>
+
+                <div class="alert alert-tip">
+                    <strong>💡 Pro Tip: The Delta Tells the Story</strong>
+                    <p>The difference between "All Data" and "Filtered Data" reveals the impact of system faults:</p>
+                    <ul>
+                        <li><strong>Small difference (< 5%):</strong> System is running reliably with minimal faults
+                        </li>
+                        <li><strong>Moderate difference (5-15%):</strong> Some intermittent issues worth investigating
+                        </li>
+                        <li><strong>Large difference (> 15%):</strong> Significant recurring faults - immediate action
+                            needed</li>
+                    </ul>
+                </div>
+
+                <h3>12.3 Filtered Data Analysis Section</h3>
+                <p>When you select <strong>Filtered Data</strong> mode, the system displays an additional
+                    <strong>Filtered Data Analysis</strong> section showing:
+                </p>
+
+                <h4>Filtering Summary</h4>
+                <p>A detailed breakdown of what was excluded:</p>
+                <pre><code>📋 Filtering Summary:
+Excluded 234 of 4,320 data points (5.4%)
+
+Filter criteria: 
+- Irradiance > 50 W/m²
+- Power ≤ 0 W
+- SoC < 95%</code></pre>
+
+                <h4>Comparison Graphs</h4>
+                <p>Side-by-side visualizations comparing All Data vs Filtered Data averages:</p>
+                <ul>
+                    <li><strong>Power Comparison:</strong> Blue line (All Data) vs Green line (Filtered Data)</li>
+                    <li><strong>Irradiance Overlay:</strong> Shows solar conditions remained constant</li>
+                    <li><strong>Difference Shading:</strong> Visual representation of the gap between modes</li>
+                </ul>
+
+                <h4>Statistics Table</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>All Data</th>
+                            <th>Filtered Data</th>
+                            <th>Difference</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Avg Power (W)</td>
+                            <td>42.3</td>
+                            <td>44.7</td>
+                            <td>+2.4 W (+5.7%)</td>
+                        </tr>
+                        <tr>
+                            <td>Max Power (W)</td>
+                            <td>68.0</td>
+                            <td>68.0</td>
+                            <td>0 W (0%)</td>
+                        </tr>
+                        <tr>
+                            <td>Avg Irradiance (W/m²)</td>
+                            <td>385</td>
+                            <td>385</td>
+                            <td>0 W/m² (0%)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="alert alert-note">
+                    <strong>📊 Interpreting the Statistics</strong>
+                    <ul>
+                        <li><strong>Average Power Increase:</strong> Shows performance potential without faults</li>
+                        <li><strong>Unchanged Max Power:</strong> Confirms filtering only removes zero/low-power
+                            anomalies, not peak performance data</li>
+                        <li><strong>Unchanged Irradiance:</strong> Proves solar conditions were the same in both
+                            datasets, validating the comparison</li>
+                    </ul>
+                </div>
+
+                <h3>12.4 Practical Use Case Example</h3>
+
+                <div class="alert alert-important">
+                    <strong>⚠️ Real-World Scenario: Diagnosing Intermittent Inverter Faults</strong>
+                    <p><strong>Situation:</strong> A user notices lower-than-expected energy production in September.
+                    </p>
+
+                    <p><strong>Analysis Steps:</strong></p>
+                    <ol>
+                        <li>Open <strong>Custom Range</strong>, select Sept 1-30</li>
+                        <li>View <strong>All Data</strong>: Average power = 38W (expected ~45W)</li>
+                        <li>Switch to <strong>Filtered Data</strong></li>
+                        <li>System reports: "Excluded 412 of 8,640 points (4.8%)"</li>
+                        <li>Filtered average power = 46W</li>
+                    </ol>
+
+                    <p><strong>Conclusion:</strong> The system is actually performing to spec (46W ≈ expected 45W) when
+                        running. The problem is <strong>intermittent shutdowns</strong> causing 4.8% downtime.
+                        Investigation revealed a faulty circuit breaker that was randomly tripping during peak
+                        production hours.</p>
+
+                    <p><strong>Action Taken:</strong> Replaced circuit breaker. Following month showed < 0.5% excluded
+                            data points and 45W average even in "All Data" mode.</p>
+                </div>
+
+                <h3>12.5 Tips for Effective Analysis</h3>
+                <ul>
+                    <li><strong>Start Broad, Then Narrow:</strong> Begin with a full month, then drill down to specific
+                        problem days</li>
+                    <li><strong>Compare Similar Periods:</strong> Use Custom Range to compare June vs July, or Week 1 vs
+                        Week 4</li>
+                    <li><strong>Document Baseline:</strong> Record filtered performance when system is known-good as a
+                        reference</li>
+                    <li><strong>Track Trends:</strong> Monitor the exclusion percentage month-over-month to detect
+                        degradation</li>
+                </ul>
             </section>
 
             <!-- Section 13: PR & Yield Analysis -->
@@ -1088,7 +1569,8 @@ Temperature Factor = 1 + (Temp Coefficient × (Cell Temp - 25°C))</code></pre>
                 <ol>
                     <li>Look at the <strong>sidebar</strong> (left side of the screen).</li>
                     <li>At the top, you will see two toggle buttons: <strong>"📊 Data Analysis"</strong> and
-                        <strong>"🌤️ Weather Tool"</strong>.</li>
+                        <strong>"🌤️ Weather Tool"</strong>.
+                    </li>
                     <li>Click <strong>"🌤️ Weather Tool"</strong> to switch to the standalone Weather Analysis view.
                     </li>
                     <li>The main content area will now display the Weather Analysis interface.</li>

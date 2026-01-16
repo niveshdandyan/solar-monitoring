@@ -259,6 +259,43 @@ def main():
             value=95,
             help="Only filter data when SoC is below this (if SoC data available). This avoids filtering battery-full curtailment situations."
         )
+        
+        st.markdown("---")
+        st.subheader("🌅 Daytime Definition")
+        
+        use_dynamic_sunrise = st.checkbox(
+            "Use sunrise/sunset from weather data",
+            value=False,
+            key="use_dynamic_sunrise",
+            help="If enabled and weather data is fetched, uses actual sunrise/sunset times. Otherwise defaults to 6 AM - 6 PM."
+        )
+        
+        if not use_dynamic_sunrise:
+            col_day1, col_day2 = st.columns(2)
+            with col_day1:
+                daytime_start = st.number_input(
+                    "Daytime Start Hour",
+                    min_value=0,
+                    max_value=12,
+                    value=6,
+                    key="daytime_start_hour",
+                    help="Hour when daytime begins (default: 6 AM)"
+                )
+            with col_day2:
+                daytime_end = st.number_input(
+                    "Daytime End Hour",
+                    min_value=12,
+                    max_value=23,
+                    value=18,
+                    key="daytime_end_hour",
+                    help="Hour when daytime ends (default: 6 PM)"
+                )
+            st.session_state['daytime_start'] = daytime_start
+            st.session_state['daytime_end'] = daytime_end
+        else:
+            st.session_state['daytime_start'] = None
+            st.session_state['daytime_end'] = None
+            st.info("📍 Daytime will be determined from sunrise/sunset data when weather is fetched.")
     
         # Default constants for anomaly detection (UI removed)
         vmpp = 30.0
@@ -336,8 +373,17 @@ def main():
                                  merged_df = calculate_power(merged_df)
                              
                              # Recalculate metrics
-                             daily_metrics = calculate_daily_metrics(merged_df, nominal_power, temp_coeff_decimal)
-                             monthly_metrics = calculate_monthly_metrics(merged_df, nominal_power, temp_coeff_decimal)
+                             daytime_start = st.session_state.get('daytime_start', 6) or 6
+                             daytime_end = st.session_state.get('daytime_end', 18) or 18
+                             
+                             daily_metrics = calculate_daily_metrics(
+                                 merged_df, nominal_power, temp_coeff_decimal,
+                                 daytime_start=daytime_start, daytime_end=daytime_end
+                             )
+                             monthly_metrics = calculate_monthly_metrics(
+                                 merged_df, nominal_power, temp_coeff_decimal,
+                                 daytime_start=daytime_start, daytime_end=daytime_end
+                             )
                              
                              # Update session state
                              st.session_state.analysis_df = merged_df
@@ -400,15 +446,24 @@ def main():
                         )
                     
                     # Calculate metrics
+                    # Retrieve daytime settings
+                    daytime_start = st.session_state.get('daytime_start', 6) or 6
+                    daytime_end = st.session_state.get('daytime_end', 18) or 18
+                    
+                    # Calculate metrics
                     daily_metrics = calculate_daily_metrics(
                         analysis_df, 
                         nominal_power, 
-                        temp_coeff_decimal
+                        temp_coeff_decimal,
+                        daytime_start=daytime_start,
+                        daytime_end=daytime_end
                     )
                     monthly_metrics = calculate_monthly_metrics(
                         analysis_df, 
                         nominal_power, 
-                        temp_coeff_decimal
+                        temp_coeff_decimal,
+                        daytime_start=daytime_start,
+                        daytime_end=daytime_end
                     )
                     
                     # Store in session state
@@ -677,6 +732,13 @@ def display_monthly_graphs(analysis_df: pd.DataFrame, export_dir: str):
     power_threshold = st.session_state.get('power_filter_threshold', 0.0)
     soc_low_threshold = st.session_state.get('soc_low_threshold', 20)
     
+    # Get daytime settings (default to 6-18 if not set or dynamic mode enabled but no weather data yet)
+    daytime_start = st.session_state.get('daytime_start')
+    daytime_end = st.session_state.get('daytime_end')
+    
+    if daytime_start is None: daytime_start = 6
+    if daytime_end is None: daytime_end = 18
+
     # Determine if filtering should be used
     use_filtering = (data_mode == "Filtered Data")
     
@@ -693,14 +755,15 @@ def display_monthly_graphs(analysis_df: pd.DataFrame, export_dir: str):
             filter_anomalous=use_filtering,
             irradiance_threshold=irradiance_threshold,
             power_threshold=power_threshold,
-            soc_low_threshold=soc_low_threshold
+            soc_low_threshold=soc_low_threshold,
+            daytime_start=daytime_start,
+            daytime_end=daytime_end
         )
         if fig:
             st.pyplot(fig)
         else:
             st.info("Insufficient data for this graph.")
     
-    with col2:
         if 'SoC_pct' in analysis_df.columns:
             st.markdown("#### Avg Power, Irradiance & SoC")
             fig = plot_monthly_hourly_power_irradiance_soc(
@@ -708,7 +771,9 @@ def display_monthly_graphs(analysis_df: pd.DataFrame, export_dir: str):
                 filter_anomalous=use_filtering,
                 irradiance_threshold=irradiance_threshold,
                 power_threshold=power_threshold,
-                soc_low_threshold=soc_low_threshold
+                soc_low_threshold=soc_low_threshold,
+                daytime_start=daytime_start,
+                daytime_end=daytime_end
             )
             if fig:
                 st.pyplot(fig)
@@ -914,9 +979,17 @@ def display_custom_range_graphs(analysis_df: pd.DataFrame, export_dir: str):
         )
     
     # Get filtering thresholds from session state
+    # Get filtering thresholds from session state
     irradiance_threshold = st.session_state.get('irradiance_filter_threshold', 50.0)
     power_threshold = st.session_state.get('power_filter_threshold', 0.0)
     soc_low_threshold = st.session_state.get('soc_low_threshold', 20)
+    
+    # Get daytime settings (default to 6-18 if not set or dynamic mode enabled but no weather data yet)
+    daytime_start = st.session_state.get('daytime_start')
+    daytime_end = st.session_state.get('daytime_end')
+    
+    if daytime_start is None: daytime_start = 6
+    if daytime_end is None: daytime_end = 18
     
     # Determine if filtering should be used
     use_filtering = (data_mode == "Filtered Data")
@@ -924,6 +997,12 @@ def display_custom_range_graphs(analysis_df: pd.DataFrame, export_dir: str):
     with col_info:
         if use_filtering:
             st.info(f"📋 Filter: Irradiance > {irradiance_threshold} W/m², Power ≤ {power_threshold} W, SoC < {soc_low_threshold}%")
+        
+        # Show daytime definition info
+        if st.session_state.get('use_dynamic_sunrise', False):
+            st.caption(f"🌅 Dynamic Daytime: Using weather data (fallback: {daytime_start}:00 - {daytime_end}:00)")
+        else:
+            st.caption(f"🌅 Daytime: {daytime_start}:00 - {daytime_end}:00 (Fixed)")
     
     # Import visualization function
     from modules.visualizations import calculate_selected_dates_hourly_averages
@@ -941,7 +1020,9 @@ def display_custom_range_graphs(analysis_df: pd.DataFrame, export_dir: str):
                 filter_anomalous=use_filtering,
                 irradiance_threshold=irradiance_threshold,
                 power_threshold=power_threshold,
-                soc_low_threshold=soc_low_threshold
+                soc_low_threshold=soc_low_threshold,
+                daytime_start=daytime_start,
+                daytime_end=daytime_end
             )
         else:
             fig = plot_selected_dates_hourly_power_irradiance(
@@ -949,7 +1030,9 @@ def display_custom_range_graphs(analysis_df: pd.DataFrame, export_dir: str):
                 filter_anomalous=use_filtering,
                 irradiance_threshold=irradiance_threshold,
                 power_threshold=power_threshold,
-                soc_low_threshold=soc_low_threshold
+                soc_low_threshold=soc_low_threshold,
+                daytime_start=daytime_start,
+                daytime_end=daytime_end
             )
         if fig:
             st.pyplot(fig)
@@ -961,11 +1044,23 @@ def display_custom_range_graphs(analysis_df: pd.DataFrame, export_dir: str):
             st.markdown("#### Avg Power, Irradiance & SoC")
             if use_range_mode:
                 fig = plot_custom_range_hourly_power_irradiance_soc(
-                    analysis_df, str(start_date), str(end_date), export_dir, show_plot=True
+                    analysis_df, str(start_date), str(end_date), export_dir, show_plot=True,
+                    filter_anomalous=use_filtering,
+                    irradiance_threshold=irradiance_threshold,
+                    power_threshold=power_threshold,
+                    soc_low_threshold=soc_low_threshold,
+                    daytime_start=daytime_start,
+                    daytime_end=daytime_end
                 )
             else:
                 fig = plot_selected_dates_hourly_power_irradiance_soc(
-                    analysis_df, selected_dates, export_dir, show_plot=True
+                    analysis_df, selected_dates, export_dir, show_plot=True,
+                    filter_anomalous=use_filtering,
+                    irradiance_threshold=irradiance_threshold,
+                    power_threshold=power_threshold,
+                    soc_low_threshold=soc_low_threshold,
+                    daytime_start=daytime_start,
+                    daytime_end=daytime_end
                 )
             if fig:
                 st.pyplot(fig)
@@ -983,11 +1078,23 @@ def display_custom_range_graphs(analysis_df: pd.DataFrame, export_dir: str):
             st.markdown("#### Avg Voltage & Irradiance")
             if use_range_mode:
                 fig = plot_custom_range_hourly_voltage_irradiance(
-                    analysis_df, str(start_date), str(end_date), export_dir, show_plot=True
+                    analysis_df, str(start_date), str(end_date), export_dir, show_plot=True,
+                    filter_anomalous=use_filtering,
+                    irradiance_threshold=irradiance_threshold,
+                    power_threshold=power_threshold,
+                    soc_low_threshold=soc_low_threshold,
+                    daytime_start=daytime_start,
+                    daytime_end=daytime_end
                 )
             else:
                 fig = plot_selected_dates_hourly_voltage_irradiance(
-                    analysis_df, selected_dates, export_dir, show_plot=True
+                    analysis_df, selected_dates, export_dir, show_plot=True,
+                    filter_anomalous=use_filtering,
+                    irradiance_threshold=irradiance_threshold,
+                    power_threshold=power_threshold,
+                    soc_low_threshold=soc_low_threshold,
+                    daytime_start=daytime_start,
+                    daytime_end=daytime_end
                 )
             if fig:
                 st.pyplot(fig)
@@ -1001,11 +1108,23 @@ def display_custom_range_graphs(analysis_df: pd.DataFrame, export_dir: str):
             st.markdown("#### Avg Current & Irradiance")
             if use_range_mode:
                 fig = plot_custom_range_hourly_current_irradiance(
-                    analysis_df, str(start_date), str(end_date), export_dir, show_plot=True
+                    analysis_df, str(start_date), str(end_date), export_dir, show_plot=True,
+                    filter_anomalous=use_filtering,
+                    irradiance_threshold=irradiance_threshold,
+                    power_threshold=power_threshold,
+                    soc_low_threshold=soc_low_threshold,
+                    daytime_start=daytime_start,
+                    daytime_end=daytime_end
                 )
             else:
                 fig = plot_selected_dates_hourly_current_irradiance(
-                    analysis_df, selected_dates, export_dir, show_plot=True
+                    analysis_df, selected_dates, export_dir, show_plot=True,
+                    filter_anomalous=use_filtering,
+                    irradiance_threshold=irradiance_threshold,
+                    power_threshold=power_threshold,
+                    soc_low_threshold=soc_low_threshold,
+                    daytime_start=daytime_start,
+                    daytime_end=daytime_end
                 )
             if fig:
                 st.pyplot(fig)
@@ -1111,6 +1230,10 @@ def display_pr_yield_graphs(analysis_df, daily_metrics, monthly_metrics, export_
     nominal_power = st.session_state.get('nominal_power', 5.0)
     temp_coeff = st.session_state.get('temp_coeff', -0.004)
     
+    # Retrieve daytime settings
+    daytime_start = st.session_state.get('daytime_start', 6) or 6
+    daytime_end = st.session_state.get('daytime_end', 18) or 18
+    
     # Calculate filtered metrics if needed
     if data_mode in ["Filtered Data", "Both (Comparison)"]:
         # Calculate filtered metrics
@@ -1120,7 +1243,9 @@ def display_pr_yield_graphs(analysis_df, daily_metrics, monthly_metrics, export_
             irradiance_threshold=irradiance_threshold,
             power_threshold=power_threshold,
             soc_low_threshold=soc_low_threshold,
-            soc_high_threshold=soc_threshold
+            soc_high_threshold=soc_threshold,
+            daytime_start=daytime_start,
+            daytime_end=daytime_end
         )
         filtered_monthly_metrics = calculate_monthly_metrics(
             analysis_df, nominal_power, temp_coeff,
@@ -1128,7 +1253,9 @@ def display_pr_yield_graphs(analysis_df, daily_metrics, monthly_metrics, export_
             irradiance_threshold=irradiance_threshold,
             power_threshold=power_threshold,
             soc_low_threshold=soc_low_threshold,
-            soc_high_threshold=soc_threshold
+            soc_high_threshold=soc_threshold,
+            daytime_start=daytime_start,
+            daytime_end=daytime_end
         )
         
         # Calculate filter summary
@@ -2563,6 +2690,67 @@ def display_weather_analysis(export_dir: str):
                 fig = plot_weather_daily_summary(summary_df, export_dir, show_plot=True)
                 if fig:
                     st.pyplot(fig)
+                
+                # Add Sunrise/Sunset times graph
+                if 'Sunrise' in summary_df.columns and 'Sunset' in summary_df.columns:
+                    st.markdown("**☀️ Sunrise & Sunset Times**")
+                    
+                    fig, ax = plt.subplots(figsize=(12, 5))
+                    
+                    dates = range(len(summary_df))
+                    date_labels = [str(d)[:10] for d in summary_df['Date']]
+                    sunrise_hours = summary_df['Sunrise'].dt.hour + summary_df['Sunrise'].dt.minute / 60
+                    sunset_hours = summary_df['Sunset'].dt.hour + summary_df['Sunset'].dt.minute / 60
+                    
+                    # Fill daylight area
+                    ax.fill_between(dates, sunrise_hours, sunset_hours, alpha=0.3, color='#FFD700', label='Daylight Hours')
+                    
+                    # Plot sunrise and sunset lines
+                    ax.plot(dates, sunrise_hours, color='#FF9800', linewidth=2.5, label='Sunrise', marker='.', markersize=6)
+                    ax.plot(dates, sunset_hours, color='#E91E63', linewidth=2.5, label='Sunset', marker='.', markersize=6)
+                    
+                    # Format axes - zoom to data range with finer tick marks
+                    ax.set_xlabel('Date', fontsize=11)
+                    ax.set_ylabel('Time of Day', fontsize=11)
+                    ax.set_title('Sunrise & Sunset Times', fontsize=13, fontweight='bold')
+                    
+                    # Calculate y-axis range based on data with padding
+                    min_hour = max(0, int(sunrise_hours.min()) - 1)
+                    max_hour = min(24, int(sunset_hours.max()) + 1)
+                    ax.set_ylim(min_hour, max_hour)
+                    
+                    # Set ticks at every hour for precise readings
+                    y_ticks = list(range(min_hour, max_hour + 1))
+                    ax.set_yticks(y_ticks)
+                    ax.set_yticklabels([f'{h:02d}:00' for h in y_ticks])
+                    
+                    # Set date labels on x-axis
+                    if len(dates) <= 15:
+                        ax.set_xticks(dates)
+                        ax.set_xticklabels(date_labels, rotation=45, ha='right')
+                    else:
+                        step = max(1, len(dates) // 10)
+                        ax.set_xticks(list(dates)[::step])
+                        ax.set_xticklabels(date_labels[::step], rotation=45, ha='right')
+                    
+                    ax.legend(loc='upper right')
+                    ax.grid(True, alpha=0.3)
+                    ax.set_facecolor('#f8f9fa')
+                    plt.tight_layout()
+                    st.pyplot(fig)
+                    plt.close(fig)
+                    
+                    # Show summary stats
+                    col_sun1, col_sun2, col_sun3 = st.columns(3)
+                    with col_sun1:
+                        avg_sunrise = f"{int(sunrise_hours.mean())}:{int((sunrise_hours.mean() % 1) * 60):02d}"
+                        st.metric("Avg Sunrise", avg_sunrise)
+                    with col_sun2:
+                        avg_sunset = f"{int(sunset_hours.mean())}:{int((sunset_hours.mean() % 1) * 60):02d}"
+                        st.metric("Avg Sunset", avg_sunset)
+                    with col_sun3:
+                        if 'Daylight_Hours' in summary_df.columns:
+                            st.metric("Avg Daylight", f"{summary_df['Daylight_Hours'].mean():.1f} hrs")
             else:
                 st.warning("No data in selected date range.")
             

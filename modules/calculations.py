@@ -302,7 +302,9 @@ def calculate_daily_metrics(
     irradiance_threshold: float = 50.0,
     power_threshold: float = 0.0,
     soc_low_threshold: float = 20.0,
-    soc_high_threshold: float = 95.0
+    soc_high_threshold: float = 95.0,
+    daytime_start: int = 6,
+    daytime_end: int = 18
 ) -> pd.DataFrame:
     """
     Calculate daily aggregated metrics.
@@ -368,8 +370,8 @@ def calculate_daily_metrics(
             'Expected_Energy_kWh': expected_energy_wh / 1000 if expected_energy_wh else 0,
             'PR_pct': pr_result['pr_value'],
             'Specific_Yield_kWhkWp': calculate_specific_yield(actual_energy_wh / 1000 if actual_energy_wh else 0, nominal_power_kw),
-            'Avg_Irradiance': day_df[day_df['Hour'].between(6, 18)]['Irradiance_Wm2'].mean() if 'Irradiance_Wm2' in day_df.columns and 'Hour' in day_df.columns else (day_df['Irradiance_Wm2'].mean() if 'Irradiance_Wm2' in day_df.columns else None),
-            'Avg_Temperature': day_df[day_df['Hour'].between(6, 18)]['Temperature_C'].mean() if 'Temperature_C' in day_df.columns and 'Hour' in day_df.columns else (day_df['Temperature_C'].mean() if 'Temperature_C' in day_df.columns else None),
+            'Avg_Irradiance': day_df[day_df['Hour'].between(daytime_start, daytime_end)]['Irradiance_Wm2'].mean() if 'Irradiance_Wm2' in day_df.columns and 'Hour' in day_df.columns else (day_df['Irradiance_Wm2'].mean() if 'Irradiance_Wm2' in day_df.columns else None),
+            'Avg_Temperature': day_df[day_df['Hour'].between(daytime_start, daytime_end)]['Temperature_C'].mean() if 'Temperature_C' in day_df.columns and 'Hour' in day_df.columns else (day_df['Temperature_C'].mean() if 'Temperature_C' in day_df.columns else None),
             'Max_Power_kW': day_with_power['Power_kW'].max() if 'Power_kW' in day_with_power.columns else None,
             'Operating_Hours': calculate_operating_hours(day_with_power),
             'Data_Points': len(day_df),
@@ -389,7 +391,9 @@ def calculate_monthly_metrics(
     irradiance_threshold: float = 50.0,
     power_threshold: float = 0.0,
     soc_low_threshold: float = 20.0,
-    soc_high_threshold: float = 95.0
+    soc_high_threshold: float = 95.0,
+    daytime_start: int = 6,
+    daytime_end: int = 18
 ) -> pd.DataFrame:
     """
     Calculate monthly aggregated metrics.
@@ -455,8 +459,8 @@ def calculate_monthly_metrics(
             'Expected_Energy_kWh': expected_energy_wh / 1000 if expected_energy_wh else 0,
             'PR_pct': pr_result['pr_value'],
             'Specific_Yield_kWhkWp': calculate_specific_yield(actual_energy_wh / 1000 if actual_energy_wh else 0, nominal_power_kw),
-            'Avg_Irradiance': month_df[month_df['Hour'].between(6, 18)]['Irradiance_Wm2'].mean() if 'Irradiance_Wm2' in month_df.columns and 'Hour' in month_df.columns else (month_df['Irradiance_Wm2'].mean() if 'Irradiance_Wm2' in month_df.columns else None),
-            'Avg_Temperature': month_df[month_df['Hour'].between(6, 18)]['Temperature_C'].mean() if 'Temperature_C' in month_df.columns and 'Hour' in month_df.columns else (month_df['Temperature_C'].mean() if 'Temperature_C' in month_df.columns else None),
+            'Avg_Irradiance': month_df[month_df['Hour'].between(daytime_start, daytime_end)]['Irradiance_Wm2'].mean() if 'Irradiance_Wm2' in month_df.columns and 'Hour' in month_df.columns else (month_df['Irradiance_Wm2'].mean() if 'Irradiance_Wm2' in month_df.columns else None),
+            'Avg_Temperature': month_df[month_df['Hour'].between(daytime_start, daytime_end)]['Temperature_C'].mean() if 'Temperature_C' in month_df.columns and 'Hour' in month_df.columns else (month_df['Temperature_C'].mean() if 'Temperature_C' in month_df.columns else None),
             'Max_Power_kW': month_with_power['Power_kW'].max() if 'Power_kW' in month_with_power.columns else None,
             'Total_Operating_Hours': calculate_operating_hours(month_with_power),
             'Avg_Operating_Hours': calculate_operating_hours(month_with_power) / month_df['Date'].nunique() if 'Date' in month_df.columns and month_df['Date'].nunique() > 0 else 0,
